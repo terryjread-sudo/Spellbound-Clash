@@ -243,3 +243,18 @@ canvas {
     color: #cbd5e1;
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
+
+
+.hud-centre { display:flex; align-items:center; gap:10px; }
+.hud-wave { font-weight:800; color:#e2e8f0; background:rgba(255,255,255,.07); padding:6px 12px; border-radius:18px; border:1px solid rgba(255,255,255,.12); white-space:nowrap; }
+@media (max-width: 720px) {
+  #ui-layer { padding:8px; }
+  #hud { width:94%; padding:9px 10px; }
+  .hud-team { font-size:12px; gap:5px; }
+  .hp-bar-bg { width:68px; }
+  .hud-centre { flex-direction:column; gap:4px; }
+  .hud-wave, .hud-gold { font-size:13px; padding:4px 8px; }
+  #info-banner { display:none; }
+  #controls { width:94%; padding:8px; gap:6px; }
+  .btn { padding:9px 11px; font-size:12px; }
+}

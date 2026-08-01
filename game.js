@@ -82,6 +82,9 @@ renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
 container.appendChild(renderer.domElement);
 
 function updateCameraViewport() {
@@ -160,53 +163,117 @@ function buildPathMesh() {
 }
 scene.add(buildPathMesh());
 
+// Lightweight model helpers
+function mat(color, roughness = 0.65, metalness = 0.05, emissive = 0x000000) {
+    return new THREE.MeshStandardMaterial({ color, roughness, metalness, emissive });
+}
+
+function mesh(geometry, material, x = 0, y = 0, z = 0) {
+    const object = new THREE.Mesh(geometry, material);
+    object.position.set(x, y, z);
+    object.castShadow = true;
+    object.receiveShadow = true;
+    return object;
+}
+
+function addBattlements(parent, width, depth, y, material) {
+    const size = 0.48;
+    const positions = [];
+    for (let x = -width / 2 + size / 2; x <= width / 2 - size / 2; x += 1.0) {
+        positions.push([x, y, -depth / 2], [x, y, depth / 2]);
+    }
+    for (let z = -depth / 2 + 1; z <= depth / 2 - 1; z += 1.0) {
+        positions.push([-width / 2, y, z], [width / 2, y, z]);
+    }
+    positions.forEach(([x, py, z]) => parent.add(mesh(new THREE.BoxGeometry(size, 0.65, size), material, x, py, z)));
+}
+
+function addEye(parent, x, y, z, color = 0x111827) {
+    const eye = mesh(new THREE.SphereGeometry(0.045, 6, 6), new THREE.MeshBasicMaterial({ color }), x, y, z);
+    eye.castShadow = false;
+    parent.add(eye);
+}
+
+function addScenery() {
+    const trunkMat = mat(0x5b371b, 0.95);
+    const leafMats = [mat(0x267a3b, 0.9), mat(0x3f9b4f, 0.9), mat(0x1f6b36, 0.9)];
+    const rockMat = mat(0x64748b, 1);
+    const reserved = [...pathNodes, ...wizardSlots];
+
+    for (let i = 0; i < 34; i++) {
+        const x = -32 + Math.random() * 64;
+        const z = -19 + Math.random() * 38;
+        if (reserved.some(p => Math.hypot(p.x - x, p.z - z) < 4.0)) continue;
+        const tree = new THREE.Group();
+        tree.add(mesh(new THREE.CylinderGeometry(0.18, 0.28, 1.8, 7), trunkMat, 0, 0.9, 0));
+        const crown = mesh(new THREE.DodecahedronGeometry(0.9 + Math.random() * 0.35, 0), leafMats[i % leafMats.length], 0, 2.05, 0);
+        crown.scale.y = 1.25;
+        tree.add(crown);
+        tree.position.set(x, 0, z);
+        tree.rotation.y = Math.random() * Math.PI;
+        scene.add(tree);
+    }
+
+    for (let i = 0; i < 18; i++) {
+        const x = -32 + Math.random() * 64;
+        const z = -19 + Math.random() * 38;
+        if (reserved.some(p => Math.hypot(p.x - x, p.z - z) < 3.2)) continue;
+        const rock = mesh(new THREE.DodecahedronGeometry(0.35 + Math.random() * 0.45, 0), rockMat, x, 0.25, z);
+        rock.scale.set(1.2, 0.65, 0.9);
+        rock.rotation.set(Math.random(), Math.random(), Math.random());
+        scene.add(rock);
+    }
+}
+
 // Castle Builder
 function createCastleMesh(teamColor) {
     const castle = new THREE.Group();
-    const stoneMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.6 });
-    const darkMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.7 });
-    const roofMat = new THREE.MeshStandardMaterial({ color: teamColor, roughness: 0.4 });
+    const stoneMat = mat(0x718096, 0.9);
+    const lightStone = mat(0x94a3b8, 0.85);
+    const darkMat = mat(0x273449, 0.8, 0.15);
+    const roofMat = mat(teamColor, 0.45, 0.15);
+    const goldMat = mat(0xfbbf24, 0.3, 0.75);
 
-    const keepGeo = new THREE.BoxGeometry(4.5, 4, 4.5);
-    const keep = new THREE.Mesh(keepGeo, stoneMat);
-    keep.position.y = 2;
-    keep.castShadow = true;
-    keep.receiveShadow = true;
+    const base = mesh(new THREE.CylinderGeometry(3.8, 4.2, 0.7, 12), darkMat, 0, 0.35, 0);
+    castle.add(base);
+
+    const keep = mesh(new THREE.BoxGeometry(4.8, 4.2, 4.8), stoneMat, 0, 2.65, 0);
     castle.add(keep);
+    addBattlements(castle, 4.8, 4.8, 5.08, lightStone);
 
-    const towerOffsets = [[-2, -2], [-2, 2], [2, -2], [2, 2]];
+    const towerOffsets = [[-2.25, -2.25], [-2.25, 2.25], [2.25, -2.25], [2.25, 2.25]];
     towerOffsets.forEach(([ox, oz]) => {
-        const tGeo = new THREE.CylinderGeometry(0.8, 0.9, 5, 12);
-        const tMesh = new THREE.Mesh(tGeo, stoneMat);
-        tMesh.position.set(ox, 2.5, oz);
-        tMesh.castShadow = true;
-        castle.add(tMesh);
-
-        const rGeo = new THREE.ConeGeometry(1.1, 1.8, 12);
-        const rMesh = new THREE.Mesh(rGeo, roofMat);
-        rMesh.position.set(ox, 5.9, oz);
-        rMesh.castShadow = true;
-        castle.add(rMesh);
+        const tower = mesh(new THREE.CylinderGeometry(0.92, 1.08, 5.4, 12), stoneMat, ox, 3.0, oz);
+        castle.add(tower);
+        const rim = mesh(new THREE.CylinderGeometry(1.12, 1.12, 0.42, 12), lightStone, ox, 5.72, oz);
+        castle.add(rim);
+        const roof = mesh(new THREE.ConeGeometry(1.28, 2.1, 12), roofMat, ox, 7.0, oz);
+        castle.add(roof);
+        const windowMesh = mesh(new THREE.BoxGeometry(0.3, 0.65, 0.08), darkMat, ox, 3.3, oz + (oz > 0 ? 0.96 : -0.96));
+        castle.add(windowMesh);
     });
 
-    const gateGeo = new THREE.BoxGeometry(1.4, 2.2, 0.2);
-    const gate = new THREE.Mesh(gateGeo, darkMat);
-    gate.position.set(0, 1.1, 2.3);
+    const gateFrame = mesh(new THREE.BoxGeometry(2.0, 2.7, 0.35), lightStone, 0, 1.7, 2.53);
+    castle.add(gateFrame);
+    const gate = mesh(new THREE.BoxGeometry(1.35, 2.3, 0.42), darkMat, 0, 1.35, 2.73);
     castle.add(gate);
+    for (let x = -0.45; x <= 0.45; x += 0.3) {
+        castle.add(mesh(new THREE.BoxGeometry(0.07, 2.15, 0.08), goldMat, x, 1.35, 2.97));
+    }
 
-    const poleGeo = new THREE.CylinderGeometry(0.08, 0.08, 3, 8);
-    const pole = new THREE.Mesh(poleGeo, darkMat);
-    pole.position.set(0, 5.5, 0);
+    const crest = mesh(new THREE.OctahedronGeometry(0.45, 0), roofMat, 0, 4.15, 2.55);
+    castle.add(crest);
+    const pole = mesh(new THREE.CylinderGeometry(0.06, 0.06, 3.0, 8), darkMat, 0, 6.3, 0);
     castle.add(pole);
-
-    const flagGeo = new THREE.BoxGeometry(1.2, 0.7, 0.05);
-    const flag = new THREE.Mesh(flagGeo, roofMat);
-    flag.position.set(0.6, 6.5, 0);
+    const flag = mesh(new THREE.BoxGeometry(1.5, 0.8, 0.08), roofMat, 0.75, 7.35, 0);
+    flag.userData.flag = true;
     castle.add(flag);
 
+    castle.userData.animate = (time) => {
+        flag.rotation.y = Math.sin(time * 0.003) * 0.14;
+    };
     return castle;
 }
-
 const blueCastle = createCastleMesh(0x38bdf8);
 blueCastle.position.set(playerBasePos.x - 2, 0, playerBasePos.z);
 scene.add(blueCastle);
@@ -214,6 +281,7 @@ scene.add(blueCastle);
 const redCastle = createCastleMesh(0xf43f5e);
 redCastle.position.set(enemyBasePos.x + 2, 0, enemyBasePos.z);
 scene.add(redCastle);
+addScenery();
 
 // Build Wizard Slot Markers
 const slotRingGeo = new THREE.RingGeometry(0.8, 1.2, 24);
@@ -296,152 +364,149 @@ function createHealthBarTexture(curHp, maxHp) {
 function createKnightMesh(team, isMega = false) {
     const knight = new THREE.Group();
     const isPlayer = team === 'player';
+    const armorColor = isMega ? 0xf4b942 : (isPlayer ? 0xb8c6d9 : 0x591622);
+    const secondaryColor = isPlayer ? 0x1478b8 : 0xc92f4b;
+    const clothColor = isPlayer ? 0x0c4a6e : 0x641220;
+    const plumeColor = isMega ? 0xffe066 : (isPlayer ? 0x42c5f5 : 0xff5a73);
 
-    const armorColor = isMega ? 0xf59e0b : (isPlayer ? 0x94a3b8 : 0x450a0a);
-    const secondaryColor = isPlayer ? 0x0284c7 : 0xd90429;
-    const plumeColor = isMega ? 0xfbbf24 : (isPlayer ? 0x38bdf8 : 0xff4d6d);
+    const armorMat = mat(armorColor, 0.26, 0.82);
+    const trimMat = mat(0xf8d66d, 0.3, 0.7);
+    const secMat = mat(secondaryColor, 0.6);
+    const clothMat = mat(clothColor, 0.85);
+    const skinMat = mat(0xf2bd8b, 0.8);
+    const darkMat = mat(0x202938, 0.65, 0.45);
 
-    const armorMat = new THREE.MeshStandardMaterial({ color: armorColor, metalness: isMega ? 0.9 : 0.8, roughness: 0.2 });
-    const secMat = new THREE.MeshStandardMaterial({ color: secondaryColor, roughness: 0.4 });
-    const plumeMat = new THREE.MeshStandardMaterial({ color: plumeColor, roughness: 0.2, emissive: isMega ? 0xb45309 : (isPlayer ? 0x000000 : 0x990000) });
-    const skinMat = new THREE.MeshStandardMaterial({ color: 0xffcc99 });
+    const torso = mesh(new THREE.CylinderGeometry(0.52, 0.63, 1.05, 10), clothMat, 0, 0.95, 0);
+    knight.add(torso);
+    const breastplate = mesh(new THREE.SphereGeometry(0.62, 12, 8), armorMat, 0, 1.12, 0.02);
+    breastplate.scale.set(1, 0.8, 0.72);
+    knight.add(breastplate);
+    const belt = mesh(new THREE.CylinderGeometry(0.57, 0.57, 0.16, 10), trimMat, 0, 0.65, 0);
+    knight.add(belt);
 
-    const bodyGeo = new THREE.CylinderGeometry(0.55, 0.45, 1.2, 12);
-    const body = new THREE.Mesh(bodyGeo, secMat);
-    body.position.y = 0.8;
-    body.castShadow = true;
-    knight.add(body);
-
-    const chestGeo = new THREE.BoxGeometry(0.75, 0.75, 0.65);
-    const chest = new THREE.Mesh(chestGeo, armorMat);
-    chest.position.y = 0.9;
-    chest.castShadow = true;
-    knight.add(chest);
-
-    const headGeo = new THREE.SphereGeometry(0.38, 12, 12);
-    const head = new THREE.Mesh(headGeo, skinMat);
-    head.position.y = 1.6;
+    const head = mesh(new THREE.SphereGeometry(0.34, 12, 10), skinMat, 0, 1.72, 0);
     knight.add(head);
+    addEye(knight, -0.12, 1.77, 0.31);
+    addEye(knight, 0.12, 1.77, 0.31);
 
-    const helmGeo = new THREE.ConeGeometry(0.45, 0.55, 12);
-    const helm = new THREE.Mesh(helmGeo, armorMat);
-    helm.position.y = 1.95;
-    helm.castShadow = true;
-    knight.add(helm);
-
-    const plumeGeo = new THREE.ConeGeometry(isMega ? 0.2 : 0.12, isMega ? 0.8 : 0.5, 8);
-    const plume = new THREE.Mesh(plumeGeo, plumeMat);
-    plume.position.set(0, 2.35, -0.1);
-    plume.rotation.x = -0.3;
+    const helmet = mesh(new THREE.SphereGeometry(0.42, 12, 8, 0, Math.PI * 2, 0, Math.PI / 1.75), armorMat, 0, 1.9, -0.02);
+    knight.add(helmet);
+    const noseGuard = mesh(new THREE.BoxGeometry(0.09, 0.42, 0.08), darkMat, 0, 1.76, 0.35);
+    knight.add(noseGuard);
+    const plume = mesh(new THREE.ConeGeometry(isMega ? 0.19 : 0.12, isMega ? 0.95 : 0.65, 7), mat(plumeColor, 0.5, 0.05, isMega ? 0x7c4a00 : 0x000000), 0, 2.42, -0.08);
+    plume.rotation.x = -0.28;
     knight.add(plume);
 
-    const shieldGeo = new THREE.BoxGeometry(0.12, 0.9, 0.6);
-    const shield = new THREE.Mesh(shieldGeo, isMega ? armorMat : secMat);
-    shield.position.set(-0.6, 0.9, 0.1);
-    knight.add(shield);
+    const leftArm = new THREE.Group();
+    leftArm.position.set(-0.58, 1.2, 0);
+    leftArm.add(mesh(new THREE.CylinderGeometry(0.15, 0.18, 0.72, 8), armorMat, 0, -0.25, 0));
+    const shield = mesh(new THREE.CylinderGeometry(0.52, 0.52, 0.12, 8), secMat, -0.12, -0.2, 0.24);
+    shield.rotation.x = Math.PI / 2;
+    leftArm.add(shield);
+    const boss = mesh(new THREE.SphereGeometry(0.14, 8, 6), trimMat, -0.12, -0.2, 0.33);
+    leftArm.add(boss);
+    knight.add(leftArm);
 
-    const swordGeo = new THREE.BoxGeometry(0.09, 1.3, 0.25);
-    const sword = new THREE.Mesh(swordGeo, armorMat);
-    sword.position.set(0.6, 1.0, 0.2);
-    sword.rotation.x = Math.PI / 4;
-    knight.add(sword);
+    const rightArm = new THREE.Group();
+    rightArm.position.set(0.58, 1.22, 0);
+    rightArm.add(mesh(new THREE.CylinderGeometry(0.14, 0.17, 0.72, 8), armorMat, 0, -0.25, 0));
+    const sword = mesh(new THREE.BoxGeometry(0.1, 1.2, 0.16), armorMat, 0.12, -0.65, 0.2);
+    sword.rotation.z = -0.18;
+    rightArm.add(sword);
+    rightArm.add(mesh(new THREE.BoxGeometry(0.46, 0.08, 0.13), trimMat, 0.12, -0.1, 0.2));
+    knight.add(rightArm);
+
+    const leftLeg = mesh(new THREE.CylinderGeometry(0.16, 0.19, 0.65, 8), darkMat, -0.23, 0.27, 0);
+    const rightLeg = mesh(new THREE.CylinderGeometry(0.16, 0.19, 0.65, 8), darkMat, 0.23, 0.27, 0);
+    knight.add(leftLeg, rightLeg);
 
     if (isMega) {
-        const auraLight = new THREE.PointLight(isPlayer ? 0x38bdf8 : 0xf59e0b, 1.5, 5);
-        auraLight.position.set(0, 1.8, 0);
-        knight.add(auraLight);
-    } else if (!isPlayer) {
-        const fireLight = new THREE.PointLight(0xff4d6d, 1.0, 3);
-        fireLight.position.set(0, 1.5, 0);
-        knight.add(fireLight);
+        const shoulderGeo = new THREE.SphereGeometry(0.28, 8, 6);
+        knight.add(mesh(shoulderGeo, armorMat, -0.58, 1.42, 0));
+        knight.add(mesh(shoulderGeo, armorMat, 0.58, 1.42, 0));
+        const aura = new THREE.PointLight(isPlayer ? 0x38bdf8 : 0xffa62b, 1.6, 5);
+        aura.position.set(0, 1.5, 0);
+        knight.add(aura);
     }
 
-    const scaleVal = isMega ? 1.55 : 1.0;
-    knight.scale.set(scaleVal, scaleVal, scaleVal);
+    knight.userData.parts = { leftArm, rightArm, leftLeg, rightLeg, plume };
+    knight.scale.setScalar(isMega ? 1.55 : 1.0);
     return knight;
 }
-
 // Wizard Mesh Generator (Standard, Fire, Ice with Level 3 Swift Boots & Level 4 Teleport Aura)
 function createWizardMesh(team, type = 'standard', level = 1) {
     const wizard = new THREE.Group();
     const isPlayer = team === 'player';
+    let robeColor = isPlayer ? 0x176fa6 : 0xa91f3d;
+    let hatColor = isPlayer ? 0x0b3c68 : 0x64152a;
+    let crystalColor = 0xf8cf4a;
+    if (type === 'fire') { robeColor = 0xd94b19; hatColor = 0x77220f; crystalColor = 0xff6a00; }
+    if (type === 'ice') { robeColor = 0x1789bd; hatColor = 0x0b4f75; crystalColor = 0x73dcff; }
 
-    let robeColor = isPlayer ? 0x0284c7 : 0xbe123c;
-    let hatColor = isPlayer ? 0x0369a1 : 0x9f1239;
-    let crystalColor = 0xfbbf24;
+    const robeMat = mat(robeColor, 0.72);
+    const robeDark = mat(hatColor, 0.78);
+    const crystalMat = mat(crystalColor, 0.25, 0.1, crystalColor);
+    crystalMat.emissiveIntensity = level >= 4 ? 1.7 : 1.05;
+    const woodMat = mat(0x6b3d1e, 0.95);
+    const skinMat = mat(0xf1bc8b, 0.82);
+    const trimMat = mat(0xf4d35e, 0.4, 0.4);
 
-    if (type === 'fire') {
-        robeColor = 0xea580c; hatColor = 0x9a3412; crystalColor = 0xff4500;
-    } else if (type === 'ice') {
-        robeColor = 0x0284c7; hatColor = 0x0c4a6e; crystalColor = 0x38bdf8;
-    }
+    const robe = mesh(new THREE.ConeGeometry(0.76, 1.65, 12), robeMat, 0, 0.82, 0);
+    wizard.add(robe);
+    const mantle = mesh(new THREE.SphereGeometry(0.52, 12, 8), robeDark, 0, 1.35, 0);
+    mantle.scale.set(1.2, 0.45, 0.9);
+    wizard.add(mantle);
+    const belt = mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.13, 12), trimMat, 0, 0.82, 0);
+    wizard.add(belt);
 
-    const robeMat = new THREE.MeshStandardMaterial({ color: robeColor, roughness: 0.5 });
-    const hatMat = new THREE.MeshStandardMaterial({ color: hatColor, roughness: 0.4 });
-    const crystalMat = new THREE.MeshStandardMaterial({ color: crystalColor, emissive: crystalColor, emissiveIntensity: level >= 4 ? 1.4 : 0.9 });
-    const woodMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.9 });
-
-    // Robe
-    const bodyGeo = new THREE.ConeGeometry(0.7, 1.6, 12);
-    const body = new THREE.Mesh(bodyGeo, robeMat);
-    body.position.y = 0.8;
-    body.castShadow = true;
-    wizard.add(body);
-
-    // Head
-    const headGeo = new THREE.SphereGeometry(0.35, 12, 12);
-    const head = new THREE.Mesh(headGeo, new THREE.MeshStandardMaterial({ color: 0xffcc99 }));
-    head.position.y = 1.7;
+    const head = mesh(new THREE.SphereGeometry(0.35, 12, 10), skinMat, 0, 1.76, 0);
     wizard.add(head);
+    addEye(wizard, -0.12, 1.82, 0.31);
+    addEye(wizard, 0.12, 1.82, 0.31);
+    const beard = mesh(new THREE.ConeGeometry(0.27, 0.65, 8), mat(level >= 3 ? 0xe5e7eb : 0xcbd5e1, 0.95), 0, 1.48, 0.25);
+    beard.rotation.x = -0.12;
+    wizard.add(beard);
 
-    // Hat
-    const brimGeo = new THREE.CylinderGeometry(0.7, 0.7, 0.05, 12);
-    const brim = new THREE.Mesh(brimGeo, hatMat);
-    brim.position.y = 1.9;
+    const brim = mesh(new THREE.CylinderGeometry(0.72, 0.72, 0.08, 12), robeDark, 0, 2.02, 0);
     wizard.add(brim);
-
-    const hatGeo = new THREE.ConeGeometry(0.45, 0.9, 12);
-    const hat = new THREE.Mesh(hatGeo, hatMat);
-    hat.position.y = 2.35;
-    hat.rotation.z = -0.15;
-    hat.castShadow = true;
+    const hat = mesh(new THREE.ConeGeometry(0.48, 1.05, 12), robeDark, -0.04, 2.55, 0);
+    hat.rotation.z = -0.18;
     wizard.add(hat);
+    const hatBand = mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.12, 12), trimMat, 0, 2.16, 0);
+    wizard.add(hatBand);
 
-    // Staff & Crystal
-    const staffGeo = new THREE.CylinderGeometry(0.06, 0.06, 2.2, 8);
-    const staff = new THREE.Mesh(staffGeo, woodMat);
-    staff.position.set(0.6, 1.1, 0.2);
-    wizard.add(staff);
+    const staffGroup = new THREE.Group();
+    staffGroup.position.set(0.66, 1.12, 0.12);
+    staffGroup.add(mesh(new THREE.CylinderGeometry(0.055, 0.07, 2.35, 8), woodMat, 0, 0, 0));
+    const crystalGeo = type === 'fire' ? new THREE.DodecahedronGeometry(0.3, 0) : new THREE.OctahedronGeometry(0.3, 0);
+    const crystal = mesh(crystalGeo, crystalMat, 0, 1.25, 0);
+    staffGroup.add(crystal);
+    const crystalLight = new THREE.PointLight(crystalColor, 1.15, 4.5);
+    crystalLight.position.set(0, 1.25, 0);
+    staffGroup.add(crystalLight);
+    wizard.add(staffGroup);
 
-    const crystalGeo = type === 'fire' ? new THREE.DodecahedronGeometry(0.28, 0) : new THREE.OctahedronGeometry(0.28, 0);
-    const crystal = new THREE.Mesh(crystalGeo, crystalMat);
-    crystal.position.set(0.6, 2.2, 0.2);
-    wizard.add(crystal);
+    const hand = mesh(new THREE.SphereGeometry(0.12, 8, 6), skinMat, 0.62, 1.12, 0.12);
+    wizard.add(hand);
 
-    // Level 3: Swift Boots Ring (Yellow/Gold)
     if (level >= 3) {
-        const swiftGeo = new THREE.RingGeometry(0.85, 1.05, 16);
-        const swiftMat = new THREE.MeshBasicMaterial({ color: 0xfbbf24, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
-        const swiftRing = new THREE.Mesh(swiftGeo, swiftMat);
-        swiftRing.rotation.x = -Math.PI / 2;
-        swiftRing.position.y = 0.04;
-        wizard.add(swiftRing);
+        const bootMat = mat(0xf4bf36, 0.4, 0.5, 0x5c3a00);
+        wizard.add(mesh(new THREE.BoxGeometry(0.35, 0.23, 0.55), bootMat, -0.3, 0.18, 0.1));
+        wizard.add(mesh(new THREE.BoxGeometry(0.35, 0.23, 0.55), bootMat, 0.3, 0.18, 0.1));
     }
-
-    // Level 4: Teleport Master Aura Ring (Purple/Magic)
     if (level >= 4) {
-        const teleGeo = new THREE.RingGeometry(1.1, 1.35, 20);
-        const teleMat = new THREE.MeshBasicMaterial({ color: 0xa855f7, side: THREE.DoubleSide, transparent: true, opacity: 0.85 });
-        const teleRing = new THREE.Mesh(teleGeo, teleMat);
-        teleRing.rotation.x = -Math.PI / 2;
-        teleRing.position.y = 0.06;
+        const teleMat = new THREE.MeshBasicMaterial({ color: 0xb56cff, side: THREE.DoubleSide, transparent: true, opacity: 0.72 });
+        const teleRing = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.08, 8, 30), teleMat);
+        teleRing.rotation.x = Math.PI / 2;
+        teleRing.position.y = 0.2;
+        teleRing.userData.teleRing = true;
         wizard.add(teleRing);
     }
 
-    wizard.scale.set(1.1, 1.1, 1.1);
+    wizard.userData.parts = { staffGroup, crystal, hat };
+    wizard.scale.setScalar(1.12);
     return wizard;
 }
-
 // --- 6. GAME CLASSES ---
 class WizardEntity {
     constructor(x, z, team) {
@@ -515,6 +580,15 @@ class WizardEntity {
     }
 
     update(dt) {
+        const t = performance.now() * 0.001;
+        const parts = this.mesh.userData.parts;
+        if (parts) {
+            parts.staffGroup.rotation.z = Math.sin(t * 2.1 + this.homeX) * 0.045;
+            parts.crystal.rotation.y += dt * 0.0025;
+            parts.hat.rotation.y = Math.sin(t * 1.3 + this.homeZ) * 0.04;
+        }
+        const teleRing = this.mesh.children.find(c => c.userData && c.userData.teleRing);
+        if (teleRing) teleRing.rotation.z += dt * 0.0018;
         let base = this.team === 'player' ? playerBasePos : enemyBasePos;
 
         // Level 3+ Swift Boots gives 2.5x speed boost for quick castle healing!
@@ -599,6 +673,16 @@ class KnightEntity {
 
     update(dt) {
         let now = Date.now();
+        const parts = this.mesh.userData.parts;
+        if (parts) {
+            const walking = Math.sin(now * 0.012 + this.pathIdx) * 0.42;
+            parts.leftLeg.rotation.x = walking;
+            parts.rightLeg.rotation.x = -walking;
+            parts.leftArm.rotation.x = -walking * 0.55;
+            parts.rightArm.rotation.x = walking * 0.55;
+            parts.plume.rotation.z = Math.sin(now * 0.009) * 0.08;
+            this.mesh.position.y = Math.abs(Math.sin(now * 0.012 + this.pathIdx)) * 0.06;
+        }
         let attacked = false;
 
         if (this.slowTimer > 0) {
@@ -676,10 +760,13 @@ class ProjectileEntity {
         else if (type === 'ice') color = 0x38bdf8;
         else if (type === 'standard') color = (team === 'player' ? 0x38bdf8 : 0xf43f5e);
 
-        const pGeo = new THREE.SphereGeometry(type === 'fire' ? 0.5 : 0.3, 8, 8);
-        const pMat = new THREE.MeshBasicMaterial({ color: color });
+        const pGeo = type === 'spear' ? new THREE.ConeGeometry(0.16, 0.75, 7) : new THREE.IcosahedronGeometry(type === 'fire' ? 0.46 : 0.31, 1);
+        const pMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.3, roughness: 0.25 });
 
         this.mesh = new THREE.Mesh(pGeo, pMat);
+        if (type === 'spear') this.mesh.rotation.x = Math.PI / 2;
+        const glow = new THREE.PointLight(color, 1.2, 3.5);
+        this.mesh.add(glow);
         this.mesh.position.set(x, y, z);
         scene.add(this.mesh);
     }
@@ -764,6 +851,8 @@ function updateHUD() {
     document.getElementById('enemyHp').innerText = enemyHp;
     document.getElementById('playerHpFill').style.width = playerHp + '%';
     document.getElementById('enemyHpFill').style.width = enemyHp + '%';
+    const waveEl = document.getElementById('wave');
+    if (waveEl) waveEl.innerText = Math.max(1, waveCount);
 }
 
 document.getElementById('btn-knight').onclick = () => {
@@ -1031,6 +1120,10 @@ function animate() {
         alert("Blue Team Wins! Victory!");
         playerHp = 100; enemyHp = 100; gold = 80; waveCount = 0; updateHUD();
     }
+
+    const animationTime = performance.now();
+    if (blueCastle.userData.animate) blueCastle.userData.animate(animationTime);
+    if (redCastle.userData.animate) redCastle.userData.animate(animationTime + 500);
 
     renderer.render(scene, camera);
 }
