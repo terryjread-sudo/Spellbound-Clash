@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spellbound Clash</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-wrapper">
+        <h1>🧙‍♂️ Spellbound Clash ⚔️</h1>
+        
+        <div id="hud">
+            <div class="team-stat blue-stat">🏰 Blue Base HP: <span id="playerHp">100</span></div>
+            <div class="gold-stat">💰 Gold: <span id="gold">50</span></div>
+            <div class="team-stat red-stat">🏰 Red Base HP: <span id="enemyHp">100</span></div>
+        </div>
+
+        <div id="canvas-container">
+            <canvas id="gameCanvas" width="900" height="500"></canvas>
+            
+            <!-- Spellbook Modal -->
+            <div id="spellbook-modal" class="modal hidden">
+                <div class="modal-content">
+                    <h2 id="spell-question">Solve to cast spell!</h2>
+                    <div id="spell-options"></div>
+                </div>
+            </div>
+
+            <!-- Upgrade Modal -->
+            <div id="upgrade-modal" class="modal hidden">
+                <div class="modal-content">
+                    <h2>Wizard Upgrades</h2>
+                    <p>Current Level: <span id="wiz-level">1</span></p>
+                    <button id="btn-upgrade" class="btn btn-gold">Upgrade</button>
+                    <button id="btn-close-upgrade" class="btn">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="controls">
+            <button class="btn btn-gold" id="btn-spellbook">📜 Read for Gold (+50)</button>
+            <button class="btn" id="btn-knight">🗡️ Summon Knight (30g)</button>
+            <button class="btn" id="btn-wizard">🧙 Build Wizard (50g)</button>
+            <button class="btn btn-dark" id="btn-editor">🛠️ Toggle Edit Mode</button>
+        </div>
+        <p id="info-text">Click a wizard to upgrade them! (Swift Boots & Teleport)</p>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
