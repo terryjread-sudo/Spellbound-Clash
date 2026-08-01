@@ -258,3 +258,22 @@ canvas {
   #controls { width:94%; padding:8px; gap:6px; }
   .btn { padding:9px 11px; font-size:12px; }
 }
+
+/* V3 combat-reading and upgrade additions */
+.hud-centre { display:flex; align-items:center; gap:10px; }
+.spell-meter { min-width:120px; font-weight:800; font-size:12px; color:#e9d5ff; }
+.spell-meter-bg { width:120px; height:8px; margin-top:3px; border-radius:8px; background:rgba(255,255,255,.12); overflow:hidden; border:1px solid rgba(216,180,254,.45); }
+.spell-meter-fill { width:100%; height:100%; background:linear-gradient(90deg,#7c3aed,#d8b4fe); transition:width .2s linear; }
+.btn:disabled { opacity:.45; cursor:not-allowed; transform:none!important; }
+.btn-purple { background:linear-gradient(135deg,#7e22ce,#581c87); box-shadow:0 4px 12px rgba(126,34,206,.35); }
+.btn-heal { background:linear-gradient(135deg,#16a34a,#166534); box-shadow:0 4px 12px rgba(22,163,74,.35); }
+.spell-reward { color:#c4b5fd; font-weight:900; margin-bottom:8px; }
+.spell-feedback { min-height:24px; color:#fca5a5; font-weight:800; }
+.word-opt.wrong { background:#7f1d1d; border-color:#ef4444; opacity:.65; }
+.upgrade-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:18px 0; }
+.upgrade-grid .btn { flex-direction:column; justify-content:center; min-height:82px; }
+.upgrade-grid small { display:block; opacity:.82; font-size:11px; font-weight:600; }
+.modal-close { margin:0 auto; }
+@media (max-width:760px){
+  .hud-centre{flex-direction:column;gap:3px}.spell-meter-bg{width:90px}.spell-meter{min-width:90px}.upgrade-grid{grid-template-columns:1fr}
+}

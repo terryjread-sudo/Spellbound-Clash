@@ -7,6 +7,15 @@ let enemyHp = 100;
 let mode = 'PLAY'; // 'PLAY', 'BUILD_WIZARD', 'EDIT_SLOTS'
 let selectedWizard = null;
 let lastTime = Date.now();
+let spellCharge = 100;
+const maxSpellCharge = 100;
+let readingStreak = 0;
+let goldIncome = 1;
+let playerCastleMaxHp = 100;
+let enemyCastleMaxHp = 100;
+let playerWizardRangeBonus = 0;
+let castleArmour = 0;
+let currentQuestion = null;
 
 // Auto Wave System Variables
 let waveCount = 0;
@@ -28,25 +37,13 @@ const enemyBasePos = pathNodes[pathNodes.length - 1];
 
 // Separate Wizard Slots per Team
 let wizardSlots = [
-    // Blue Team Slots (Player - Left Side X < 0)
-    { x: -20, z: -10, team: 'player' },
-    { x: -12, z: -10, team: 'player' },
-    { x: -4, z: -10, team: 'player' },
-    { x: -16, z: -1, team: 'player' },
-    { x: -8, z: -1, team: 'player' },
-    { x: -20, z: 9, team: 'player' },
-    { x: -12, z: 9, team: 'player' },
-    { x: -4, z: 9, team: 'player' },
-
-    // Red Team Slots (Enemy AI - Right Side X > 0)
-    { x: 4, z: -10, team: 'enemy' },
-    { x: 12, z: -10, team: 'enemy' },
-    { x: 20, z: -10, team: 'enemy' },
-    { x: 8, z: -1, team: 'enemy' },
-    { x: 16, z: -1, team: 'enemy' },
-    { x: 4, z: 9, team: 'enemy' },
-    { x: 12, z: 9, team: 'enemy' },
-    { x: 20, z: 9, team: 'enemy' }
+    // Every slot is deliberately close enough to the road for range to matter.
+    { x: -21, z: 8, team: 'player' }, { x: -17, z: 0, team: 'player' },
+    { x: -11, z: 0, team: 'player' }, { x: -9, z: -10, team: 'player' },
+    { x: -3, z: -2, team: 'player' }, { x: -22, z: 0, team: 'player' },
+    { x: 3, z: -2, team: 'enemy' }, { x: 9, z: -10, team: 'enemy' },
+    { x: 11, z: 0, team: 'enemy' }, { x: 17, z: 0, team: 'enemy' },
+    { x: 21, z: 8, team: 'enemy' }, { x: 22, z: 0, team: 'enemy' }
 ];
 
 // Collections
@@ -56,16 +53,40 @@ const projectiles = [];
 const slotMeshes = [];
 const floatingTexts = [];
 
-// Questions for Age 8+
+// Reading challenges aimed at age 8. Each answer casts a combat spell.
 const questions = [
-    { q: "Which word rhymes with 'KNIGHT'?", opts: ["Light", "Kite", "Fright", "All of these"], a: "All of these" },
-    { q: "Which word means 'VERY BRAVE'?", opts: ["Timid", "Courageous", "Silent", "Sleepy"], a: "Courageous" },
-    { q: "Select the ACTION word (Verb):", opts: ["Shield", "Charge", "Armor", "Castle"], a: "Charge" },
-    { q: "Find the synonym for 'SWIFT':", opts: ["Slow", "Fast", "Heavy", "Dark"], a: "Fast" },
-    { q: "Which spell prefix means 'AGAIN'?", opts: ["Pre-", "Un-", "Re-", "Dis-"], a: "Re-" },
-    { q: "What is the antonym (opposite) of 'DEFEND'?", opts: ["Protect", "Attack", "Guard", "Save"], a: "Attack" },
-    { q: "Which is a NOUN?", opts: ["Quickly", "Magical", "Wizard", "Run"], a: "Wizard" }
+    { q: "Which word means the same as QUICK?", opts: ["Fast", "Late", "Quiet", "Heavy"], a: "Fast", difficulty: 1, effect: "freeze", label: "❄️ Frost Wave" },
+    { q: "Which spelling is correct?", opts: ["Because", "Becaus", "Beacause", "Becose"], a: "Because", difficulty: 1, effect: "reinforce", label: "⚔️ Call Reinforcements" },
+    { q: "What is the opposite of ANCIENT?", opts: ["Old", "Modern", "Broken", "Huge"], a: "Modern", difficulty: 2, effect: "meteor", label: "☄️ Meteor Strike" },
+    { q: "Choose the adjective: The fierce dragon roared.", opts: ["dragon", "roared", "fierce", "the"], a: "fierce", difficulty: 2, effect: "freeze", label: "❄️ Frost Wave" },
+    { q: "Which word has a silent letter?", opts: ["Knight", "Table", "River", "Music"], a: "Knight", difficulty: 2, effect: "reinforce", label: "⚔️ Call Reinforcements" },
+    { q: "Which sentence uses their correctly?", opts: ["Their going home.", "The knights raised their shields.", "Put it over their.", "Their is a dragon."], a: "The knights raised their shields.", difficulty: 3, effect: "income", label: "💰 Wisdom of Wealth" },
+    { q: "Which word contains a suffix meaning ‘full of’?", opts: ["Careful", "Replay", "Unkind", "Preview"], a: "Careful", difficulty: 3, effect: "meteor", label: "☄️ Meteor Strike" }
 ];
+
+
+function distanceToPath(x, z) {
+    let best = Infinity;
+    for (let i = 0; i < pathNodes.length - 1; i++) {
+        const a = pathNodes[i], b = pathNodes[i + 1];
+        const dx = b.x - a.x, dz = b.z - a.z;
+        const len2 = dx * dx + dz * dz;
+        const t = Math.max(0, Math.min(1, ((x-a.x)*dx + (z-a.z)*dz) / len2));
+        best = Math.min(best, Math.hypot(x - (a.x + t*dx), z - (a.z + t*dz)));
+    }
+    return best;
+}
+function nearestPathIndex(x, z) {
+    let idx = 0, best = Infinity;
+    pathNodes.forEach((p, i) => { const d=Math.hypot(p.x-x,p.z-z); if(d<best){best=d;idx=i;} });
+    return idx;
+}
+function showBattleText(text) {
+    const banner = document.getElementById('info-banner');
+    banner.textContent = text;
+    clearTimeout(showBattleText.timer);
+    showBattleText.timer = setTimeout(() => banner.textContent = '📖 Charge the spellbook, answer correctly, and cast battle magic!', 2600);
+}
 
 // --- 3. THREE.JS SCENE SETUP ---
 const container = document.getElementById('canvas-container');
@@ -510,146 +531,115 @@ function createWizardMesh(team, type = 'standard', level = 1) {
 // --- 6. GAME CLASSES ---
 class WizardEntity {
     constructor(x, z, team) {
-        this.homeX = x;
-        this.homeZ = z;
-        this.team = team;
-        this.hp = 60;
-        this.maxHp = 60;
-        this.range = 17;
-        this.type = 'standard'; // 'standard', 'fire', 'ice'
-        this.level = 1; // 1: Standard, 2: Elemental, 3: Swift Boots, 4: Teleport Master
-        this.state = 'ACTIVE';
-        this.lastShot = 0;
-
-        this.mesh = createWizardMesh(team, this.type, this.level);
-        this.mesh.position.set(x, 0, z);
-        this.mesh.userData = { entity: this };
-        scene.add(this.mesh);
+        this.homeX=x; this.homeZ=z; this.team=team; this.hp=60; this.maxHp=60;
+        this.range=12 + (team === 'player' ? playerWizardRangeBonus : 0);
+        this.type='standard'; this.level=1; this.state='ACTIVE'; this.lastShot=0; this.sleepTimer=0;
+        this.route=[]; this.routePos=0;
+        this.mesh=createWizardMesh(team,this.type,this.level); this.mesh.position.set(x,0,z);
+        this.mesh.userData={entity:this}; scene.add(this.mesh);
     }
-
     takeDamage(amount, attackerTeam) {
-        if (this.state !== 'ACTIVE') return;
+        if (this.state !== 'ACTIVE' && this.state !== 'SLEEPING') return;
         this.hp -= amount;
         if (this.hp <= 0) {
-            this.hp = 0;
-            if (attackerTeam === 'player' && this.team === 'enemy') {
-                gold += 35;
-                updateHUD();
-                createFloatingGoldText(this.mesh.position.x, 2.5, this.mesh.position.z, "+35g");
-            }
+            this.hp=0;
+            if(attackerTeam==='player' && this.team==='enemy'){gold+=35;updateHUD();createFloatingGoldText(this.mesh.position.x,2.5,this.mesh.position.z,'+35g');}
             this.triggerRecovery();
         }
     }
-
-    triggerRecovery() {
-        if (this.level >= 4) {
-            // Level 4: Instant Teleport back to castle to heal instantly!
-            let base = this.team === 'player' ? playerBasePos : enemyBasePos;
-            this.mesh.position.set(base.x, 0, base.z);
-            this.hp = this.maxHp;
-            this.state = 'RETURNING';
-            createFloatingGoldText(base.x, 3.5, base.z, "✨ Teleport!");
+    putToSleep(seconds=8) {
+        if(this.state!=='ACTIVE') return;
+        this.state='SLEEPING'; this.sleepTimer=seconds;
+        createFloatingGoldText(this.mesh.position.x,3,this.mesh.position.z,'💤 Asleep');
+    }
+    buildRoute(toBase) {
+        const nearest=nearestPathIndex(this.homeX,this.homeZ);
+        const baseIdx=this.team==='player'?0:pathNodes.length-1;
+        const indexes=[];
+        if(toBase){
+            indexes.push(nearest);
+            const step=baseIdx>nearest?1:-1;
+            for(let i=nearest+step; step>0?i<=baseIdx:i>=baseIdx; i+=step) indexes.push(i);
         } else {
-            // Level 1-3: Walk back to castle to recover
-            this.state = 'RETREATING';
+            const step=nearest>baseIdx?1:-1;
+            for(let i=baseIdx+step; step>0?i<=nearest:i>=nearest; i+=step) indexes.push(i);
         }
+        this.route=indexes.map(i=>({x:pathNodes[i].x,z:pathNodes[i].z}));
+        if(!toBase) this.route.push({x:this.homeX,z:this.homeZ});
+        this.routePos=0;
     }
-
-    specialize(type) {
-        this.type = type;
-        this.level = 2; // Reaches L2 Elemental Specialization
-        this.rebuildMesh();
+    triggerRecovery() {
+        const base=this.team==='player'?playerBasePos:enemyBasePos;
+        if(this.level>=4){
+            this.mesh.position.set(base.x,0,base.z); this.hp=this.maxHp; this.state='RETURNING';
+            this.buildRoute(false); createFloatingGoldText(base.x,3.5,base.z,'✨ Teleport!');
+        } else { this.state='RETREATING'; this.buildRoute(true); }
     }
-
-    upgradeSwift() {
-        this.level = 3; // Reaches L3 Swift Boots
-        this.rebuildMesh();
+    healNow() {
+        this.hp=this.maxHp; this.sleepTimer=0;
+        if(this.state==='SLEEPING') this.state='ACTIVE';
+        createFloatingGoldText(this.mesh.position.x,3,this.mesh.position.z,'💚 Healed');
     }
-
-    upgradeTeleport() {
-        this.level = 4; // Reaches L4 Castle Teleport Master
-        this.rebuildMesh();
+    specialize(type){this.type=type;this.level=2;this.rebuildMesh();}
+    upgradeSwift(){this.level=3;this.rebuildMesh();}
+    upgradeTeleport(){this.level=4;this.rebuildMesh();}
+    rebuildMesh(){
+        const pos=this.mesh.position.clone(); scene.remove(this.mesh); this.mesh=createWizardMesh(this.team,this.type,this.level);
+        this.mesh.position.copy(pos); this.mesh.userData={entity:this}; scene.add(this.mesh);
     }
-
-    rebuildMesh() {
-        scene.remove(this.mesh);
-        this.mesh = createWizardMesh(this.team, this.type, this.level);
-        this.mesh.position.set(this.homeX, 0, this.homeZ);
-        this.mesh.userData = { entity: this };
-        scene.add(this.mesh);
-    }
-
     update(dt) {
-        const t = performance.now() * 0.001;
-        const parts = this.mesh.userData.parts;
-        if (parts) {
-            parts.staffGroup.rotation.z = Math.sin(t * 2.1 + this.homeX) * 0.045;
-            parts.crystal.rotation.y += dt * 0.0025;
-            parts.hat.rotation.y = Math.sin(t * 1.3 + this.homeZ) * 0.04;
+        const t=performance.now()*0.001, parts=this.mesh.userData.parts;
+        if(parts){parts.staffGroup.rotation.z=Math.sin(t*2.1+this.homeX)*0.045;parts.crystal.rotation.y+=dt*0.0025;parts.hat.rotation.y=Math.sin(t*1.3+this.homeZ)*0.04;}
+        const teleRing=this.mesh.children.find(c=>c.userData&&c.userData.teleRing); if(teleRing) teleRing.rotation.z+=dt*0.0018;
+        if(this.state==='SLEEPING'){
+            this.sleepTimer-=dt/1000; this.mesh.rotation.z=Math.sin(t*2)*0.08;
+            if(this.sleepTimer<=0){this.state='ACTIVE';this.mesh.rotation.z=0;}
+            return;
         }
-        const teleRing = this.mesh.children.find(c => c.userData && c.userData.teleRing);
-        if (teleRing) teleRing.rotation.z += dt * 0.0018;
-        let base = this.team === 'player' ? playerBasePos : enemyBasePos;
-
-        // Level 3+ Swift Boots gives 2.5x speed boost for quick castle healing!
-        let speedMult = (this.level >= 3) ? 2.5 : 1.0;
-        let speed = (9 * speedMult) * (dt / 1000);
-
-        if (this.state === 'RETREATING') {
-            if (this.moveTo(base.x, base.z, speed)) {
-                this.hp = this.maxHp;
-                this.state = 'RETURNING';
+        // Deliberately slow at L1/L2. Swift Boots are a noticeable upgrade.
+        const unitsPerSecond=this.level>=3?6.2:2.25;
+        const moveAmount=unitsPerSecond*(dt/1000);
+        if(this.state==='RETREATING'||this.state==='RETURNING'){
+            const target=this.route[this.routePos];
+            if(!target){
+                if(this.state==='RETREATING'){this.hp=this.maxHp;this.state='RETURNING';this.buildRoute(false);}
+                else this.state='ACTIVE';
+                return;
             }
-        } else if (this.state === 'RETURNING') {
-            if (this.moveTo(this.homeX, this.homeZ, speed)) {
-                this.state = 'ACTIVE';
-            }
-        } else if (this.state === 'ACTIVE') {
-            let now = Date.now();
-            let fireInterval = this.type === 'fire' ? 900 : 1300;
-            if (now - this.lastShot > fireInterval) {
-                let target = knights.find(k => k.team !== this.team && Math.hypot(k.mesh.position.x - this.mesh.position.x, k.mesh.position.z - this.mesh.position.z) < this.range);
-                if (target) {
-                    projectiles.push(new ProjectileEntity(this.mesh.position.x, 1.8, this.mesh.position.z, target, this.team, this.type));
-                    this.lastShot = now;
-                }
-            }
+            if(this.moveTo(target.x,target.z,moveAmount)) this.routePos++;
+            return;
+        }
+        const now=Date.now(), fireInterval=this.type==='fire'?900:1300;
+        if(now-this.lastShot>fireInterval){
+            const target=knights.find(k=>k.team!==this.team && Math.hypot(k.mesh.position.x-this.mesh.position.x,k.mesh.position.z-this.mesh.position.z)<this.range);
+            if(target){projectiles.push(new ProjectileEntity(this.mesh.position.x,1.8,this.mesh.position.z,target,this.team,this.type));this.lastShot=now;}
         }
     }
-
-    moveTo(tx, tz, speed) {
-        let dist = Math.hypot(tx - this.mesh.position.x, tz - this.mesh.position.z);
-        if (dist <= speed) {
-            this.mesh.position.x = tx;
-            this.mesh.position.z = tz;
-            return true;
-        }
-        let angle = Math.atan2(tx - this.mesh.position.x, tz - this.mesh.position.z);
-        this.mesh.position.x += Math.sin(angle) * speed;
-        this.mesh.position.z += Math.cos(angle) * speed;
-        this.mesh.rotation.y = angle;
-        return false;
+    moveTo(tx,tz,speed){
+        const dist=Math.hypot(tx-this.mesh.position.x,tz-this.mesh.position.z);
+        if(dist<=speed){this.mesh.position.x=tx;this.mesh.position.z=tz;return true;}
+        const angle=Math.atan2(tx-this.mesh.position.x,tz-this.mesh.position.z);
+        this.mesh.position.x+=Math.sin(angle)*speed;this.mesh.position.z+=Math.cos(angle)*speed;this.mesh.rotation.y=angle;return false;
     }
-
-    destroy() {
-        scene.remove(this.mesh);
-    }
+    destroy(){scene.remove(this.mesh);}
 }
 
 class KnightEntity {
-    constructor(team, isMega = false) {
+    constructor(team, isMega = false, unitType = 'knight') {
         this.team = team;
+        this.unitType = unitType;
         this.isMega = isMega;
         this.pathIdx = team === 'player' ? 0 : pathNodes.length - 1;
 
-        this.hp = isMega ? 160 : 15;
+        this.hp = unitType === 'disruptor' ? 30 : (isMega ? 160 : 15);
         this.maxHp = this.hp;
-        this.speed = isMega ? 4.2 : 5.8;
+        this.speed = unitType === 'disruptor' ? 8.2 : (isMega ? 4.2 : 5.8);
         this.range = isMega ? 3.5 : 2.5;
         this.lastAttack = 0;
         this.slowTimer = 0;
 
         this.mesh = createKnightMesh(team, isMega);
+        if (unitType === 'disruptor') { this.mesh.scale.multiplyScalar(0.85); this.mesh.traverse(o => { if(o.material && o.material.color) o.material.color.offsetHSL(0.12,0.15,0.05); }); }
         const startPos = pathNodes[this.pathIdx];
         this.mesh.position.set(startPos.x, 0, startPos.z);
         scene.add(this.mesh);
@@ -693,6 +683,17 @@ class KnightEntity {
 
         let curX = this.mesh.position.x;
         let curZ = this.mesh.position.z;
+        // Disruptors ignore the road, charge the nearest wizard, then sacrifice themselves.
+        if (this.unitType === 'disruptor') {
+            const target = wizards.filter(w => w.team !== this.team && w.state !== 'RETREATING' && w.state !== 'RETURNING')
+                .sort((a,b) => Math.hypot(a.mesh.position.x-curX,a.mesh.position.z-curZ)-Math.hypot(b.mesh.position.x-curX,b.mesh.position.z-curZ))[0];
+            if (target) {
+                const dist=Math.hypot(target.mesh.position.x-curX,target.mesh.position.z-curZ);
+                if(dist<1.4){ target.putToSleep(9); this.hp=0; createFloatingGoldText(curX,2.5,curZ,'💥 Disrupted'); return; }
+                const amount=curSpeed*(dt/1000), angle=Math.atan2(target.mesh.position.x-curX,target.mesh.position.z-curZ);
+                this.mesh.position.x+=Math.sin(angle)*amount; this.mesh.position.z+=Math.cos(angle)*amount; this.mesh.rotation.y=angle; return;
+            }
+        }
 
         // 1. Fight opposing knights
         let enemyK = knights.find(k => k.team !== this.team && Math.hypot(k.mesh.position.x - curX, k.mesh.position.z - curZ) < (this.isMega ? 3.5 : 2.5));
@@ -737,7 +738,7 @@ class KnightEntity {
             } else {
                 let dmgAmt = this.isMega ? 30 : 10;
                 if (this.team === 'player') enemyHp = Math.max(0, enemyHp - dmgAmt);
-                else playerHp = Math.max(0, playerHp - dmgAmt);
+                else playerHp = Math.max(0, playerHp - Math.max(1, dmgAmt - castleArmour));
                 this.hp = 0;
             }
         }
@@ -834,13 +835,12 @@ setInterval(() => {
         }
     }
 
-    if (Math.random() < 0.15) {
-        knights.push(new KnightEntity('enemy', true));
-    }
+    if (Math.random() < 0.15) knights.push(new KnightEntity('enemy', true));
+    if (waveCount >= 3 && Math.random() < 0.18) knights.push(new KnightEntity('enemy', false, 'disruptor'));
 }, 4500);
 
 setInterval(() => {
-    gold += 1;
+    gold += goldIncome;
     updateHUD();
 }, 1000);
 
@@ -849,10 +849,14 @@ function updateHUD() {
     document.getElementById('gold').innerText = gold;
     document.getElementById('playerHp').innerText = playerHp;
     document.getElementById('enemyHp').innerText = enemyHp;
-    document.getElementById('playerHpFill').style.width = playerHp + '%';
-    document.getElementById('enemyHpFill').style.width = enemyHp + '%';
+    document.getElementById('playerHpFill').style.width = (playerHp/playerCastleMaxHp*100) + '%';
+    document.getElementById('enemyHpFill').style.width = (enemyHp/enemyCastleMaxHp*100) + '%';
     const waveEl = document.getElementById('wave');
     if (waveEl) waveEl.innerText = Math.max(1, waveCount);
+    const charge=document.getElementById('spellCharge'); if(charge) charge.innerText=Math.floor(spellCharge);
+    const fill=document.getElementById('spellChargeFill'); if(fill) fill.style.width=(spellCharge/maxSpellCharge*100)+'%';
+    const streak=document.getElementById('readingStreak'); if(streak) streak.innerText=readingStreak;
+    document.getElementById('btn-spellbook').disabled = spellCharge < maxSpellCharge;
 }
 
 document.getElementById('btn-knight').onclick = () => {
@@ -879,31 +883,51 @@ document.getElementById('btn-editor').onclick = () => {
     btn.classList.toggle('btn-active', mode === 'EDIT_SLOTS');
 };
 
+function castReadingSpell(qObj) {
+    const enemies=knights.filter(k=>k.team==='enemy');
+    if(qObj.effect==='freeze') enemies.forEach(k=>k.slowTimer=Math.max(k.slowTimer,6));
+    if(qObj.effect==='reinforce') for(let i=0;i<3;i++) setTimeout(()=>knights.push(new KnightEntity('player',false)),i*250);
+    if(qObj.effect==='meteor') enemies.forEach(k=>{k.hp-=qObj.difficulty===3?70:45;if(k.isMega)k.updateHealthBar();});
+    if(qObj.effect==='income') { goldIncome += 1; showBattleText('💰 Permanent gold income increased!'); }
+    const reward=10*qObj.difficulty; gold+=reward;
+    if(readingStreak>0 && readingStreak%5===0){ enemies.forEach(k=>k.hp-=60); showBattleText('🔥 Five-answer streak: bonus meteor!'); }
+    createFloatingGoldText(0,8,0,qObj.label+' +'+reward+'g');
+}
 document.getElementById('btn-spellbook').onclick = () => {
-    const modal = document.getElementById('spellbook-modal');
-    const qObj = questions[Math.floor(Math.random() * questions.length)];
-
-    document.getElementById('spell-question').innerText = qObj.q;
-    const optsDiv = document.getElementById('spell-options');
-    optsDiv.innerHTML = '';
-
-    qObj.opts.forEach(opt => {
-        const btn = document.createElement('div');
-        btn.className = 'word-opt';
-        btn.innerText = opt;
-        btn.onclick = () => {
-            if (opt === qObj.a) {
-                gold += 50;
-                updateHUD();
-            } else {
-                alert("Incorrect! Better luck next time!");
-            }
-            modal.classList.add('hidden');
-        };
-        optsDiv.appendChild(btn);
+    if(spellCharge<maxSpellCharge){showBattleText('The spellbook is still recharging.');return;}
+    spellCharge=0; currentQuestion=questions[Math.floor(Math.random()*questions.length)]; updateHUD();
+    const modal=document.getElementById('spellbook-modal');
+    document.getElementById('spell-question').innerText=currentQuestion.q;
+    document.getElementById('spell-reward').innerText=`${currentQuestion.label} • Difficulty ${currentQuestion.difficulty}`;
+    const optsDiv=document.getElementById('spell-options'); optsDiv.innerHTML='';
+    currentQuestion.opts.forEach(opt=>{
+        const btn=document.createElement('button'); btn.className='word-opt'; btn.innerText=opt;
+        btn.onclick=()=>{
+            if(opt===currentQuestion.a){readingStreak++;castReadingSpell(currentQuestion);modal.classList.add('hidden');updateHUD();}
+            else {readingStreak=0;btn.classList.add('wrong');btn.disabled=true;document.getElementById('spell-feedback').innerText='Not quite — try another answer.';updateHUD();}
+        }; optsDiv.appendChild(btn);
     });
-    modal.classList.remove('hidden');
+    document.getElementById('spell-feedback').innerText=''; modal.classList.remove('hidden');
 };
+
+
+document.getElementById('btn-disruptor').onclick = () => {
+    if(gold>=55){gold-=55;knights.push(new KnightEntity('player',false,'disruptor'));updateHUD();}
+    else showBattleText('Not enough gold for a Disruptor.');
+};
+document.getElementById('btn-heal').onclick = () => {
+    if(gold<45){showBattleText('Not enough gold for Healing Light.');return;}
+    const hurt=wizards.filter(w=>w.team==='player'&&(w.hp<w.maxHp||w.state==='SLEEPING'));
+    if(!hurt.length){showBattleText('All your wizards are already healthy.');return;}
+    gold-=45;hurt.forEach(w=>w.healNow());updateHUD();
+};
+document.getElementById('btn-castle').onclick=()=>document.getElementById('castle-modal').classList.remove('hidden');
+document.getElementById('btn-close-castle').onclick=()=>document.getElementById('castle-modal').classList.add('hidden');
+function buyCastleUpgrade(cost, action, message){if(gold<cost){showBattleText('Not enough gold.');return;}gold-=cost;action();updateHUD();showBattleText(message);}
+document.getElementById('btn-fortify').onclick=()=>buyCastleUpgrade(100,()=>{playerCastleMaxHp+=25;playerHp+=25;},'🏰 Castle maximum health increased!');
+document.getElementById('btn-treasury').onclick=()=>buyCastleUpgrade(120,()=>goldIncome++,'💰 Treasury now earns more gold each second!');
+document.getElementById('btn-arcane').onclick=()=>buyCastleUpgrade(110,()=>{playerWizardRangeBonus+=2;wizards.filter(w=>w.team==='player').forEach(w=>w.range+=2);},'🔮 Every player wizard gained +2 range!');
+document.getElementById('btn-armour').onclick=()=>buyCastleUpgrade(90,()=>castleArmour=Math.min(6,castleArmour+2),'🧱 Incoming castle damage reduced!');
 
 document.getElementById('btn-close-upgrade').onclick = () => {
     document.getElementById('upgrade-modal').classList.add('hidden');
@@ -1004,6 +1028,7 @@ window.addEventListener('click', (e) => {
         const intersects = raycaster.intersectObject(ground);
         if (intersects.length > 0) {
             const pt = intersects[0].point;
+            if(distanceToPath(pt.x,pt.z)>5.5){showBattleText('Wizard slots must be close to the road.');return;}
             let existingIdx = wizardSlots.findIndex(s => Math.hypot(s.x - pt.x, s.z - pt.z) < 2.5);
             if (existingIdx !== -1) {
                 wizardSlots.splice(existingIdx, 1);
@@ -1072,6 +1097,7 @@ function animate() {
     let dt = now - lastTime;
     lastTime = now;
 
+    spellCharge=Math.min(maxSpellCharge,spellCharge+(dt/1000)*5);
     waveTimer += dt / 1000;
     if (waveTimer >= waveInterval) {
         waveTimer = 0;
@@ -1114,11 +1140,11 @@ function animate() {
 
     if (playerHp <= 0) {
         alert("Red Team Wins! Refreshing battle...");
-        playerHp = 100; enemyHp = 100; gold = 80; waveCount = 0; updateHUD();
+        playerHp=playerCastleMaxHp;enemyHp=enemyCastleMaxHp;gold=80;waveCount=0;readingStreak=0;spellCharge=100;updateHUD();
     }
     if (enemyHp <= 0) {
         alert("Blue Team Wins! Victory!");
-        playerHp = 100; enemyHp = 100; gold = 80; waveCount = 0; updateHUD();
+        playerHp=playerCastleMaxHp;enemyHp=enemyCastleMaxHp;gold=80;waveCount=0;readingStreak=0;spellCharge=100;updateHUD();
     }
 
     const animationTime = performance.now();

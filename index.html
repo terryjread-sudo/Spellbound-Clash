@@ -24,7 +24,10 @@
                 <span id="playerHp">100</span>
             </div>
 
-            <div class="hud-centre"><div class="hud-wave">⚔️ Wave <span id="wave">1</span></div><div class="hud-gold">
+            <div class="hud-centre">
+                <div class="hud-wave">⚔️ Wave <span id="wave">1</span> · 🔥 Streak <span id="readingStreak">0</span></div>
+                <div class="spell-meter" title="The spellbook recharges during battle"><span>📖 <span id="spellCharge">100</span></span><div class="spell-meter-bg"><div id="spellChargeFill" class="spell-meter-fill"></div></div></div>
+                <div class="hud-gold">
                 <span>🪙</span>
                 <span id="gold">80</span>
             </div></div>
@@ -44,7 +47,10 @@
         <div id="controls">
             <button id="btn-knight" class="btn">🛡️ Spawn Mega Knight (40g)</button>
             <button id="btn-wizard" class="btn">🧙 Build Wizard (50g)</button>
-            <button id="btn-spellbook" class="btn btn-gold">📖 Read Spellbook (+50g)</button>
+            <button id="btn-spellbook" class="btn btn-gold">📖 Cast Reading Spell</button>
+            <button id="btn-disruptor" class="btn btn-purple">💥 Disruptor (55g)</button>
+            <button id="btn-heal" class="btn btn-heal">💚 Healing Light (45g)</button>
+            <button id="btn-castle" class="btn btn-dark">🏰 Castle Upgrades</button>
             <button id="btn-editor" class="btn btn-dark">🛠️ Toggle Edit Mode</button>
         </div>
 
@@ -54,8 +60,10 @@
     <div id="spellbook-modal" class="modal hidden">
         <div class="modal-content">
             <h2>📖 Spellbook Challenge</h2>
+            <div id="spell-reward" class="spell-reward"></div>
             <p id="spell-question">Loading question...</p>
             <div id="spell-options"></div>
+            <p id="spell-feedback" class="spell-feedback"></p>
         </div>
     </div>
 
@@ -79,6 +87,21 @@
                 <div id="wiz-max-msg" style="display: none; color: #a855f7; font-weight: 800; font-size: 16px;">✨ MAX POWER UNLOCKED!</div>
             </div>
             <button id="btn-close-upgrade" class="btn btn-dark" style="margin-top: 5px;">Close</button>
+        </div>
+    </div>
+
+
+    <div id="castle-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>🏰 Blue Castle Upgrades</h2>
+            <p>Permanent for the current battle.</p>
+            <div class="upgrade-grid">
+                <button id="btn-fortify" class="btn">❤️ Fortify Walls (100g)<small>+25 maximum castle health</small></button>
+                <button id="btn-armour" class="btn btn-dark">🧱 Reinforced Stone (90g)<small>Reduce damage reaching the castle</small></button>
+                <button id="btn-treasury" class="btn btn-gold">💰 Royal Treasury (120g)<small>+1 gold every second</small></button>
+                <button id="btn-arcane" class="btn btn-purple">🔮 Arcane Beacon (110g)<small>+2 range for all player wizards</small></button>
+            </div>
+            <button id="btn-close-castle" class="btn btn-dark modal-close">Close</button>
         </div>
     </div>
 
