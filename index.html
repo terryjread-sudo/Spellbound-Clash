@@ -38,11 +38,11 @@
             </div>
         </div>
 
-        <div id="info-banner">🔵 Blue Slots (Left) for Player • 🔴 Red Slots (Right) for Enemy AI • Defeat enemies for +20g bonus!</div>
+        <div id="info-banner">⚔️ Waves of 1-hit knights spawn automatically! Summon Mega Knights or specialize Wizards into 🔥 Fire or ❄️ Ice!</div>
 
         <!-- Bottom Controls -->
         <div id="controls">
-            <button id="btn-knight" class="btn">🛡️ Spawn Knight (30g)</button>
+            <button id="btn-knight" class="btn">🛡️ Spawn Mega Knight (40g)</button>
             <button id="btn-wizard" class="btn">🧙 Build Wizard (50g)</button>
             <button id="btn-spellbook" class="btn btn-gold">📖 Read Spellbook (+50g)</button>
             <button id="btn-editor" class="btn btn-dark">🛠️ Toggle Edit Mode</button>
@@ -62,10 +62,14 @@
     <!-- Wizard Upgrade Modal -->
     <div id="upgrade-modal" class="modal hidden">
         <div class="modal-content">
-            <h2>🧙 Wizard Upgrade</h2>
-            <p>Current Level: <span id="wiz-level">1</span></p>
-            <button id="btn-upgrade" class="btn btn-gold">Upgrade</button>
-            <button id="btn-close-upgrade" class="btn btn-dark" style="margin-top: 10px;">Close</button>
+            <h2>🧙 Wizard Mastery</h2>
+            <p>Current: <span id="wiz-level">1 (Standard)</span></p>
+            <div id="upgrade-branch" style="display: flex; flex-direction: column; gap: 10px; margin: 15px 0;">
+                <button id="btn-upgrade-fire" class="btn" style="background: linear-gradient(135deg, #ea580c, #c2410c);">🔥 Fire Wizard (40g) - High Blast Damage</button>
+                <button id="btn-upgrade-ice" class="btn" style="background: linear-gradient(135deg, #0284c7, #0369a1);">❄️ Ice Wizard (40g) - Freezing Slow Effect</button>
+                <button id="btn-upgrade-max" class="btn btn-gold" style="display: none;">✨ Max Power Upgrade (80g)</button>
+            </div>
+            <button id="btn-close-upgrade" class="btn btn-dark" style="margin-top: 5px;">Close</button>
         </div>
     </div>
 
