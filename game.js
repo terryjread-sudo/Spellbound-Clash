@@ -8,7 +8,7 @@ let mode = 'PLAY'; // 'PLAY', 'BUILD_WIZARD', 'EDIT_SLOTS'
 let selectedWizard = null;
 let lastTime = Date.now();
 
-// --- 2. 3D PATH & SLOTS DEFINITION ---
+// --- 2. 3D PATH & TEAM WIZARD SLOTS DEFINITION ---
 // Path coordinates in 3D space (X, Z)
 const pathNodes = [
     { x: -26, z: 4 },
@@ -22,10 +22,27 @@ const pathNodes = [
 const playerBasePos = pathNodes[0];
 const enemyBasePos = pathNodes[pathNodes.length - 1];
 
+// Separate Wizard Slots per Team: Left side (X < 0) for Player Blue Team, Right side (X > 0) for Enemy Red Team
 let wizardSlots = [
-    { x: -18, z: -10 }, { x: -8, z: -10 }, { x: 2, z: -10 }, { x: 12, z: -10 },
-    { x: -8, z: -1 }, { x: 0, z: -1 }, { x: 8, z: -1 },
-    { x: -14, z: 9 }, { x: -4, z: 9 }, { x: 6, z: 9 }, { x: 16, z: 9 }
+    // Blue Team Slots (Player - Left Side)
+    { x: -20, z: -10, team: 'player' },
+    { x: -12, z: -10, team: 'player' },
+    { x: -4, z: -10, team: 'player' },
+    { x: -16, z: -1, team: 'player' },
+    { x: -8, z: -1, team: 'player' },
+    { x: -20, z: 9, team: 'player' },
+    { x: -12, z: 9, team: 'player' },
+    { x: -4, z: 9, team: 'player' },
+
+    // Red Team Slots (Enemy AI - Right Side)
+    { x: 4, z: -10, team: 'enemy' },
+    { x: 12, z: -10, team: 'enemy' },
+    { x: 20, z: -10, team: 'enemy' },
+    { x: 8, z: -1, team: 'enemy' },
+    { x: 16, z: -1, team: 'enemy' },
+    { x: 4, z: 9, team: 'enemy' },
+    { x: 12, z: 9, team: 'enemy' },
+    { x: 20, z: 9, team: 'enemy' }
 ];
 
 // Collections
@@ -33,6 +50,7 @@ const knights = [];
 const wizards = [];
 const projectiles = [];
 const slotMeshes = [];
+const floatingTexts = [];
 
 // Questions for Age 8+
 const questions = [
@@ -45,14 +63,14 @@ const questions = [
     { q: "Which is a NOUN?", opts: ["Quickly", "Magical", "Wizard", "Run"], a: "Wizard" }
 ];
 
-// --- 3. THREE.JS SCENE SETUP ---
+// --- 3. THREE.JS SCENE & RESPONSIVE CAMERA SETUP ---
 const container = document.getElementById('canvas-container');
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0f172a);
 scene.fog = new THREE.FogExp2(0x0f172a, 0.012);
 
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 32, 28);
+camera.position.set(0, 34, 28);
 camera.lookAt(0, -2, 0);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -61,6 +79,29 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 container.appendChild(renderer.domElement);
+
+// Dynamic Camera Resizing logic so full battlefield always stays in view!
+function updateCameraViewport() {
+    const aspect = window.innerWidth / window.innerHeight;
+    camera.aspect = aspect;
+
+    const baseFov = 50;
+    const targetAspect = 1.65; // Standard widescreen ratio for full field view
+
+    if (aspect < targetAspect) {
+        // Narrow window (mobile/portrait/tablet): Adjust FOV dynamically so full width (X = -32 to +32) stays visible
+        const verticalFovRad = baseFov * (Math.PI / 180);
+        const horizontalFovRad = 2 * Math.atan(Math.tan(verticalFovRad / 2) * targetAspect);
+        camera.fov = (2 * Math.atan(Math.tan(horizontalFovRad / 2) / aspect)) * (180 / Math.PI);
+    } else {
+        camera.fov = baseFov;
+    }
+
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+window.addEventListener('resize', updateCameraViewport);
 
 // Lighting
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
@@ -79,7 +120,6 @@ dirLight.shadow.camera.top = 25;
 dirLight.shadow.camera.bottom = -25;
 scene.add(dirLight);
 
-// Hemisphere light for soft fantasy outdoor ambient color
 const hemiLight = new THREE.HemisphereLight(0x38bdf8, 0x1e293b, 0.35);
 scene.add(hemiLight);
 
@@ -182,24 +222,66 @@ const redCastle = createCastleMesh(0xf43f5e);
 redCastle.position.set(enemyBasePos.x + 2, 0, enemyBasePos.z);
 scene.add(redCastle);
 
-// Build Wizard Slot Markers
+// Build Wizard Slot Markers (Distinct Team Colors)
 const slotRingGeo = new THREE.RingGeometry(0.8, 1.2, 24);
-const slotMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
+const blueSlotMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide, transparent: true, opacity: 0.75 });
+const redSlotMat = new THREE.MeshBasicMaterial({ color: 0xf43f5e, side: THREE.DoubleSide, transparent: true, opacity: 0.75 });
 
 function refreshSlotMeshes() {
     slotMeshes.forEach(m => scene.remove(m));
     slotMeshes.length = 0;
 
     wizardSlots.forEach(s => {
-        const mesh = new THREE.Mesh(slotRingGeo, slotMat);
+        const isPlayerSlot = s.team === 'player' || s.x < 0;
+        const mat = isPlayerSlot ? blueSlotMat : redSlotMat;
+
+        const group = new THREE.Group();
+
+        const mesh = new THREE.Mesh(slotRingGeo, mat);
         mesh.rotation.x = -Math.PI / 2;
-        mesh.position.set(s.x, 0.05, s.z);
+        group.add(mesh);
+
+        // Center emblem disk
+        const innerGeo = new THREE.CircleGeometry(0.4, 16);
+        const innerMat = new THREE.MeshBasicMaterial({ color: isPlayerSlot ? 0x0284c7 : 0xbe123c, transparent: true, opacity: 0.5 });
+        const innerMesh = new THREE.Mesh(innerGeo, innerMat);
+        innerMesh.rotation.x = -Math.PI / 2;
+        group.add(innerMesh);
+
+        group.position.set(s.x, 0.05, s.z);
+        group.userData = { isSlot: true, slotData: s };
+        scene.add(group);
+
+        // Store reference for raycasting
         mesh.userData = { isSlot: true, slotData: s };
-        scene.add(mesh);
         slotMeshes.push(mesh);
     });
 }
 refreshSlotMeshes();
+
+// Floating 3D Gold Text / Popup Notification
+function createFloatingGoldText(x, y, z, textStr) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+
+    ctx.font = '900 44px "Segoe UI", Roboto, sans-serif';
+    ctx.fillStyle = '#fbbf24';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+    ctx.shadowBlur = 10;
+    ctx.fillText(textStr, 128, 70);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const mat = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+    const sprite = new THREE.Sprite(mat);
+    sprite.position.set(x, y, z);
+    sprite.scale.set(4.5, 2.25, 1);
+    scene.add(sprite);
+
+    floatingTexts.push({ sprite, life: 1.0, initialY: y });
+}
 
 // --- 5. ENTITY BUILDERS ---
 // Knight Mesh Generator
@@ -300,7 +382,7 @@ function createWizardMesh(team, level) {
     head.position.y = 1.7;
     wizard.add(head);
 
-    // Wizard Hat (Brim + Cone)
+    // Wizard Hat
     const brimGeo = new THREE.CylinderGeometry(0.7, 0.7, 0.05, 12);
     const brim = new THREE.Mesh(brimGeo, hatMat);
     brim.position.y = 1.9;
@@ -348,7 +430,7 @@ class WizardEntity {
         this.maxHp = 50;
         this.range = 16;
         this.level = 1;
-        this.state = 'ACTIVE'; // ACTIVE, RETREATING, RETURNING
+        this.state = 'ACTIVE';
         this.lastShot = 0;
 
         this.mesh = createWizardMesh(team, this.level);
@@ -357,11 +439,16 @@ class WizardEntity {
         scene.add(this.mesh);
     }
 
-    takeDamage(amount) {
+    takeDamage(amount, attackerTeam) {
         if (this.state !== 'ACTIVE') return;
         this.hp -= amount;
         if (this.hp <= 0) {
             this.hp = 0;
+            if (attackerTeam === 'player' && this.team === 'enemy') {
+                gold += 30; // +30 Gold for defeating enemy wizard
+                updateHUD();
+                createFloatingGoldText(this.mesh.position.x, 2.5, this.mesh.position.z, "+30g");
+            }
             this.triggerRecovery();
         }
     }
@@ -535,8 +622,11 @@ class ProjectileEntity {
         let moveAmt = this.speed * (dt / 1000);
 
         if (dist <= moveAmt) {
-            if (this.target instanceof WizardEntity) this.target.takeDamage(12);
-            else this.target.hp -= 15;
+            if (this.target instanceof WizardEntity) {
+                this.target.takeDamage(12, this.team);
+            } else {
+                this.target.hp -= 15;
+            }
             scene.remove(this.mesh);
             return true; // Hit
         }
@@ -552,8 +642,9 @@ class ProjectileEntity {
 setInterval(() => {
     if (Math.random() < 0.45) knights.push(new KnightEntity('enemy'));
 
-    if (Math.random() < 0.15) {
-        let availableSlots = wizardSlots.filter(s => s.x > 0 && !wizards.find(w => w.homeX === s.x && w.homeZ === s.z));
+    if (Math.random() < 0.18) {
+        // Enemy AI only builds on Red slots (Right side X > 0)
+        let availableSlots = wizardSlots.filter(s => (s.team === 'enemy' || s.x > 0) && !wizards.find(w => w.homeX === s.x && w.homeZ === s.z));
         if (availableSlots.length > 0) {
             let slot = availableSlots[Math.floor(Math.random() * availableSlots.length)];
             wizards.push(new WizardEntity(slot.x, slot.z, 'enemy'));
@@ -680,7 +771,8 @@ window.addEventListener('click', (e) => {
             if (existingIdx !== -1) {
                 wizardSlots.splice(existingIdx, 1);
             } else {
-                wizardSlots.push({ x: Math.round(pt.x), z: Math.round(pt.z) });
+                const teamSide = pt.x < 0 ? 'player' : 'enemy';
+                wizardSlots.push({ x: Math.round(pt.x), z: Math.round(pt.z), team: teamSide });
             }
             refreshSlotMeshes();
         }
@@ -690,8 +782,18 @@ window.addEventListener('click', (e) => {
     if (mode === 'BUILD_WIZARD') {
         const intersects = raycaster.intersectObjects(slotMeshes);
         if (intersects.length > 0) {
-            const slotData = intersects[0].object.userData.slotData;
+            let hitObject = intersects[0].object;
+            // Trace up to parent group if needed
+            let slotData = hitObject.userData.slotData || (hitObject.parent && hitObject.parent.userData.slotData);
+
             if (slotData) {
+                const isPlayerSlot = slotData.team === 'player' || slotData.x < 0;
+
+                if (!isPlayerSlot) {
+                    alert("⚠️ Red Team Territory! You can only build wizards on Blue slots (Left Side).");
+                    return;
+                }
+
                 let occupied = wizards.find(w => w.homeX === slotData.x && w.homeZ === slotData.z);
                 if (!occupied) {
                     if (gold >= 50) {
@@ -704,6 +806,8 @@ window.addEventListener('click', (e) => {
                     } else {
                         alert("Not enough gold!");
                     }
+                } else {
+                    alert("This slot already has a wizard!");
                 }
             }
         }
@@ -739,6 +843,11 @@ function animate() {
         let k = knights[i];
         k.update(dt);
         if (k.hp <= 0) {
+            if (k.team === 'enemy') {
+                gold += 20; // Defeating enemy knight awards +20 Gold!
+                updateHUD();
+                createFloatingGoldText(k.mesh.position.x, 2.5, k.mesh.position.z, "+20g");
+            }
             k.destroy();
             knights.splice(i, 1);
         }
@@ -747,6 +856,18 @@ function animate() {
     for (let i = projectiles.length - 1; i >= 0; i--) {
         if (projectiles[i].update(dt)) {
             projectiles.splice(i, 1);
+        }
+    }
+
+    // Animate floating gold text popups
+    for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        let ft = floatingTexts[i];
+        ft.life -= dt / 1000;
+        ft.sprite.position.y += 0.04;
+        ft.sprite.material.opacity = Math.max(0, ft.life);
+        if (ft.life <= 0) {
+            scene.remove(ft.sprite);
+            floatingTexts.splice(i, 1);
         }
     }
 
@@ -763,14 +884,8 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-// Window resize handler
-window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-});
-
-// Initialize HUD
+// Initial camera frustum fitting & HUD update
+updateCameraViewport();
 updateHUD();
 
 // Start Loop
