@@ -3,46 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spellbound Clash</title>
+    <title>Spellbound Clash 3D</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div id="game-wrapper">
-        <h1>Spellbound Clash</h1>
+    <!-- 3D Canvas Container -->
+    <div id="canvas-container"></div>
 
-        <!-- Heads Up Display -->
+    <!-- UI Overlay Layer -->
+    <div id="ui-layer">
+
+        <!-- Top HUD -->
         <div id="hud">
-            <div>Blue Base: <span id="playerHp" class="blue-stat">100</span> HP</div>
-            <div>Gold: <span id="gold" class="gold-stat">80</span></div>
-            <div>Red Base: <span id="enemyHp" class="red-stat">100</span> HP</div>
-        </div>
-
-        <!-- Game Canvas & Modals -->
-        <div id="canvas-container">
-            <canvas id="gameCanvas" width="900" height="450"></canvas>
-
-            <!-- Spellbook Quiz Modal -->
-            <div id="spellbook-modal" class="modal hidden">
-                <div class="modal-content">
-                    <h2>📖 Spellbook Challenge</h2>
-                    <p id="spell-question">Loading question...</p>
-                    <div id="spell-options"></div>
+            <div class="hud-team blue-team">
+                <span>🏰 Blue Castle</span>
+                <div class="hp-bar-bg">
+                    <div id="playerHpFill" class="hp-bar-fill blue-fill" style="width: 100%;"></div>
                 </div>
+                <span id="playerHp">100</span>
             </div>
 
-            <!-- Wizard Upgrade Modal -->
-            <div id="upgrade-modal" class="modal hidden">
-                <div class="modal-content">
-                    <h2>🧙 Wizard Upgrade</h2>
-                    <p>Current Level: <span id="wiz-level">1</span></p>
-                    <button id="btn-upgrade" class="btn btn-gold">Upgrade</button>
-                    <button id="btn-close-upgrade" class="btn btn-dark" style="margin-top: 10px;">Close</button>
+            <div class="hud-gold">
+                <span>🪙</span>
+                <span id="gold">80</span>
+            </div>
+
+            <div class="hud-team red-team">
+                <span id="enemyHp">100</span>
+                <div class="hp-bar-bg">
+                    <div id="enemyHpFill" class="hp-bar-fill red-fill" style="width: 100%;"></div>
                 </div>
+                <span>🏰 Red Castle</span>
             </div>
         </div>
 
-        <!-- Controls -->
+        <div id="info-banner">Click grass or wizard slots in 3D to build & manage towers!</div>
+
+        <!-- Bottom Controls -->
         <div id="controls">
             <button id="btn-knight" class="btn">🛡️ Spawn Knight (30g)</button>
             <button id="btn-wizard" class="btn">🧙 Build Wizard (50g)</button>
@@ -50,11 +48,31 @@
             <button id="btn-editor" class="btn btn-dark">🛠️ Toggle Edit Mode</button>
         </div>
 
-        <div id="info-text">
-            Place wizards on designated slots to defend your base against incoming enemy knights!
+    </div>
+
+    <!-- Spellbook Quiz Modal -->
+    <div id="spellbook-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>📖 Spellbook Challenge</h2>
+            <p id="spell-question">Loading question...</p>
+            <div id="spell-options"></div>
         </div>
     </div>
 
+    <!-- Wizard Upgrade Modal -->
+    <div id="upgrade-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>🧙 Wizard Upgrade</h2>
+            <p>Current Level: <span id="wiz-level">1</span></p>
+            <button id="btn-upgrade" class="btn btn-gold">Upgrade</button>
+            <button id="btn-close-upgrade" class="btn btn-dark" style="margin-top: 10px;">Close</button>
+        </div>
+    </div>
+
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- 3D Game Engine -->
     <script src="game.js"></script>
 </body>
 </html>
