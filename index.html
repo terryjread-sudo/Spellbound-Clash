@@ -3,50 +3,188 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spellbound Clash</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Spellbound Clash 3D</title>
+    <style>
+        /* This removes margins so the 3D canvas fills the whole screen */
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #000;
+        }
+
+        /* This positions our UI over top of the 3D world */
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10; /* Ensures it stays on top */
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+            border: 2px solid #FFD700;
+        }
+
+        h1 { margin-top: 0; font-size: 24px; color: #FFD700; }
+        .gold-text { font-size: 20px; font-weight: bold; margin-bottom: 15px; }
+        
+        button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            transition: 0.2s;
+        }
+        
+        #read-btn { background-color: #4CAF50; color: white; }
+        #read-btn:hover { background-color: #45a049; }
+        
+        #wizard-btn { background-color: #2196F3; color: white; }
+        #wizard-btn:hover { background-color: #0b7dda; }
+    </style>
 </head>
 <body>
-    <div id="game-wrapper">
-        <h1>🧙‍♂️ Spellbound Clash ⚔️</h1>
-        
-        <div id="hud">
-            <div class="team-stat blue-stat">🏰 Blue Base HP: <span id="playerHp">100</span></div>
-            <div class="gold-stat">💰 Gold: <span id="gold">50</span></div>
-            <div class="team-stat red-stat">🏰 Red Base HP: <span id="enemyHp">100</span></div>
-        </div>
 
-        <div id="canvas-container">
-            <canvas id="gameCanvas" width="900" height="500"></canvas>
-            
-            <!-- Spellbook Modal -->
-            <div id="spellbook-modal" class="modal hidden">
-                <div class="modal-content">
-                    <h2 id="spell-question">Solve to cast spell!</h2>
-                    <div id="spell-options"></div>
-                </div>
-            </div>
-
-            <!-- Upgrade Modal -->
-            <div id="upgrade-modal" class="modal hidden">
-                <div class="modal-content">
-                    <h2>Wizard Upgrades</h2>
-                    <p>Current Level: <span id="wiz-level">1</span></p>
-                    <button id="btn-upgrade" class="btn btn-gold">Upgrade</button>
-                    <button id="btn-close-upgrade" class="btn">Close</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="controls">
-            <button class="btn btn-gold" id="btn-spellbook">📜 Read for Gold (+50)</button>
-            <button class="btn" id="btn-knight">🗡️ Summon Knight (30g)</button>
-            <button class="btn" id="btn-wizard">🧙 Build Wizard (50g)</button>
-            <button class="btn btn-dark" id="btn-editor">🛠️ Toggle Edit Mode</button>
-        </div>
-        <p id="info-text">Click a wizard to upgrade them! (Swift Boots & Teleport)</p>
+    <!-- HTML UI Overlay -->
+    <div id="ui-layer">
+        <h1>Spellbound Clash 3D</h1>
+        <div class="gold-text" id="gold-display">Gold: 0</div>
+        <button id="read-btn" onclick="readBook()">📖 Read a Book (+10 Gold)</button>
+        <button id="wizard-btn" onclick="placeWizard()">🧙 Place Wizard (Cost: 20)</button>
     </div>
 
-    <script src="game.js"></script>
+    <!-- Import the Three.js 3D Library via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- The Game Logic -->
+    <script>
+        // --- 1. GAME VARIABLES ---
+        let gold = 0;
+        const enemies = [];
+        const wizards = [];
+
+        // --- 2. SET UP THE 3D SCENE ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB); // Sky blue background
+
+        // Set up the camera (Field of view, aspect ratio, near/far clipping)
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 15, 20); // Move camera up and back
+        camera.lookAt(0, 0, 0); // Point camera at the center
+
+        // Set up the renderer (draws the graphics)
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Add Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); // Soft white light
+        scene.add(ambientLight);
+        
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(10, 20, 10);
+        scene.add(dirLight);
+
+        // Add the Ground (A flat green plane)
+        const planeGeo = new THREE.PlaneGeometry(60, 40);
+        const planeMat = new THREE.MeshStandardMaterial({ color: 0x2d5a27 }); // Dark green
+        const plane = new THREE.Mesh(planeGeo, planeMat);
+        plane.rotation.x = -Math.PI / 2; // Lay it flat
+        scene.add(plane);
+
+        // Add a Dirt Path for enemies
+        const pathGeo = new THREE.PlaneGeometry(60, 4);
+        const pathMat = new THREE.MeshStandardMaterial({ color: 0x8b5a2b });
+        const path = new THREE.Mesh(pathGeo, pathMat);
+        path.rotation.x = -Math.PI / 2;
+        path.position.y = 0.05; // Slightly above ground so it doesn't glitch
+        scene.add(path);
+
+        // --- 3. GAME FUNCTIONS ---
+
+        // Function triggered by the HTML button
+        function readBook() {
+            gold += 10;
+            document.getElementById('gold-display').innerText = `Gold: ${gold}`;
+        }
+
+        // Function to spawn a 3D Wizard (Blue Cone)
+        function placeWizard() {
+            if (gold >= 20) {
+                gold -= 20;
+                document.getElementById('gold-display').innerText = `Gold: ${gold}`;
+                
+                // Create a Wizard object
+                const wizardGeo = new THREE.ConeGeometry(1, 3, 16);
+                const wizardMat = new THREE.MeshStandardMaterial({ color: 0x0044ff });
+                const wizard = new THREE.Mesh(wizardGeo, wizardMat);
+                
+                // Place it randomly along the top half of the map
+                const randomX = (Math.random() - 0.5) * 40;
+                const randomZ = (Math.random() * -10) - 5; 
+                
+                wizard.position.set(randomX, 1.5, randomZ);
+                scene.add(wizard);
+                wizards.push(wizard);
+            } else {
+                alert("Not enough gold! Go read a book!");
+            }
+        }
+
+        // Function to spawn an Enemy (Red Box)
+        function spawnEnemy() {
+            const enemyGeo = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+            const enemyMat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+            const enemy = new THREE.Mesh(enemyGeo, enemyMat);
+            
+            // Start at the far left edge of the path
+            enemy.position.set(-30, 0.75, 0); 
+            scene.add(enemy);
+            enemies.push(enemy);
+        }
+
+        // Spawn a new enemy every 2 seconds
+        setInterval(spawnEnemy, 2000);
+
+        // --- 4. THE ANIMATION LOOP ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Move all enemies slightly to the right every frame
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                let enemy = enemies[i];
+                enemy.position.x += 0.05; // Speed of the enemy
+
+                // Rotate them for a cool walking/rolling effect
+                enemy.rotation.x += 0.05;
+                enemy.rotation.y += 0.05;
+
+                // Remove enemy if it reaches the end of the path
+                if (enemy.position.x > 30) {
+                    scene.remove(enemy);
+                    enemies.splice(i, 1);
+                }
+            }
+
+            // Render the updated scene
+            renderer.render(scene, camera);
+        }
+
+        // Start the loop
+        animate();
+
+        // Handle window resizing so the 3D canvas doesn't stretch
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
 </body>
 </html>
