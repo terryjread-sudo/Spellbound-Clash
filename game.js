@@ -11,7 +11,7 @@ let lastTime = Date.now();
 // Auto Wave System Variables
 let waveCount = 0;
 let waveTimer = 0;
-let waveInterval = 6.0; // Starts at 6 seconds, speeds up over time
+let waveInterval = 6.0;
 
 // --- 2. 3D PATH & TEAM WIZARD SLOTS DEFINITION ---
 const pathNodes = [
@@ -279,14 +279,12 @@ function createHealthBarTexture(curHp, maxHp) {
     canvas.width = 128; canvas.height = 24;
     const ctx = canvas.getContext('2d');
 
-    // Background
     ctx.fillStyle = '#1e293b';
     ctx.fillRect(0, 0, 128, 24);
     ctx.strokeStyle = '#f59e0b';
     ctx.lineWidth = 3;
     ctx.strokeRect(0, 0, 128, 24);
 
-    // Fill
     const pct = Math.max(0, curHp / maxHp);
     ctx.fillStyle = pct > 0.5 ? '#22c55e' : (pct > 0.2 ? '#eab308' : '#ef4444');
     ctx.fillRect(3, 3, Math.floor(122 * pct), 18);
@@ -299,7 +297,7 @@ function createKnightMesh(team, isMega = false) {
     const knight = new THREE.Group();
     const isPlayer = team === 'player';
 
-    const armorColor = isMega ? 0xf59e0b : (isPlayer ? 0x94a3b8 : 0x450a0a); // Gold for Mega, Silver/Red for Normal
+    const armorColor = isMega ? 0xf59e0b : (isPlayer ? 0x94a3b8 : 0x450a0a);
     const secondaryColor = isPlayer ? 0x0284c7 : 0xd90429;
     const plumeColor = isMega ? 0xfbbf24 : (isPlayer ? 0x38bdf8 : 0xff4d6d);
 
@@ -308,21 +306,18 @@ function createKnightMesh(team, isMega = false) {
     const plumeMat = new THREE.MeshStandardMaterial({ color: plumeColor, roughness: 0.2, emissive: isMega ? 0xb45309 : (isPlayer ? 0x000000 : 0x990000) });
     const skinMat = new THREE.MeshStandardMaterial({ color: 0xffcc99 });
 
-    // Body
     const bodyGeo = new THREE.CylinderGeometry(0.55, 0.45, 1.2, 12);
     const body = new THREE.Mesh(bodyGeo, secMat);
     body.position.y = 0.8;
     body.castShadow = true;
     knight.add(body);
 
-    // Chestplate
     const chestGeo = new THREE.BoxGeometry(0.75, 0.75, 0.65);
     const chest = new THREE.Mesh(chestGeo, armorMat);
     chest.position.y = 0.9;
     chest.castShadow = true;
     knight.add(chest);
 
-    // Head / Helm
     const headGeo = new THREE.SphereGeometry(0.38, 12, 12);
     const head = new THREE.Mesh(headGeo, skinMat);
     head.position.y = 1.6;
@@ -334,27 +329,23 @@ function createKnightMesh(team, isMega = false) {
     helm.castShadow = true;
     knight.add(helm);
 
-    // Plume
     const plumeGeo = new THREE.ConeGeometry(isMega ? 0.2 : 0.12, isMega ? 0.8 : 0.5, 8);
     const plume = new THREE.Mesh(plumeGeo, plumeMat);
     plume.position.set(0, 2.35, -0.1);
     plume.rotation.x = -0.3;
     knight.add(plume);
 
-    // Shield
     const shieldGeo = new THREE.BoxGeometry(0.12, 0.9, 0.6);
     const shield = new THREE.Mesh(shieldGeo, isMega ? armorMat : secMat);
     shield.position.set(-0.6, 0.9, 0.1);
     knight.add(shield);
 
-    // Sword
     const swordGeo = new THREE.BoxGeometry(0.09, 1.3, 0.25);
     const sword = new THREE.Mesh(swordGeo, armorMat);
     sword.position.set(0.6, 1.0, 0.2);
     sword.rotation.x = Math.PI / 4;
     knight.add(sword);
 
-    // Fire/Gold Ember Aura for Mega Knight
     if (isMega) {
         const auraLight = new THREE.PointLight(isPlayer ? 0x38bdf8 : 0xf59e0b, 1.5, 5);
         auraLight.position.set(0, 1.8, 0);
@@ -370,8 +361,8 @@ function createKnightMesh(team, isMega = false) {
     return knight;
 }
 
-// Wizard Mesh Generator (Standard, Fire, Ice)
-function createWizardMesh(team, type = 'standard') {
+// Wizard Mesh Generator (Standard, Fire, Ice with Level 3 Swift Boots & Level 4 Teleport Aura)
+function createWizardMesh(team, type = 'standard', level = 1) {
     const wizard = new THREE.Group();
     const isPlayer = team === 'player';
 
@@ -387,7 +378,7 @@ function createWizardMesh(team, type = 'standard') {
 
     const robeMat = new THREE.MeshStandardMaterial({ color: robeColor, roughness: 0.5 });
     const hatMat = new THREE.MeshStandardMaterial({ color: hatColor, roughness: 0.4 });
-    const crystalMat = new THREE.MeshStandardMaterial({ color: crystalColor, emissive: crystalColor, emissiveIntensity: 0.9 });
+    const crystalMat = new THREE.MeshStandardMaterial({ color: crystalColor, emissive: crystalColor, emissiveIntensity: level >= 4 ? 1.4 : 0.9 });
     const woodMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.9 });
 
     // Robe
@@ -427,14 +418,24 @@ function createWizardMesh(team, type = 'standard') {
     crystal.position.set(0.6, 2.2, 0.2);
     wizard.add(crystal);
 
-    // Specialization aura ring
-    if (type !== 'standard') {
-        const auraGeo = new THREE.RingGeometry(0.9, 1.15, 16);
-        const auraMat = new THREE.MeshBasicMaterial({ color: crystalColor, side: THREE.DoubleSide, transparent: true, opacity: 0.85 });
-        const aura = new THREE.Mesh(auraGeo, auraMat);
-        aura.rotation.x = -Math.PI / 2;
-        aura.position.y = 0.05;
-        wizard.add(aura);
+    // Level 3: Swift Boots Ring (Yellow/Gold)
+    if (level >= 3) {
+        const swiftGeo = new THREE.RingGeometry(0.85, 1.05, 16);
+        const swiftMat = new THREE.MeshBasicMaterial({ color: 0xfbbf24, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
+        const swiftRing = new THREE.Mesh(swiftGeo, swiftMat);
+        swiftRing.rotation.x = -Math.PI / 2;
+        swiftRing.position.y = 0.04;
+        wizard.add(swiftRing);
+    }
+
+    // Level 4: Teleport Master Aura Ring (Purple/Magic)
+    if (level >= 4) {
+        const teleGeo = new THREE.RingGeometry(1.1, 1.35, 20);
+        const teleMat = new THREE.MeshBasicMaterial({ color: 0xa855f7, side: THREE.DoubleSide, transparent: true, opacity: 0.85 });
+        const teleRing = new THREE.Mesh(teleGeo, teleMat);
+        teleRing.rotation.x = -Math.PI / 2;
+        teleRing.position.y = 0.06;
+        wizard.add(teleRing);
     }
 
     wizard.scale.set(1.1, 1.1, 1.1);
@@ -451,10 +452,11 @@ class WizardEntity {
         this.maxHp = 60;
         this.range = 17;
         this.type = 'standard'; // 'standard', 'fire', 'ice'
+        this.level = 1; // 1: Standard, 2: Elemental, 3: Swift Boots, 4: Teleport Master
         this.state = 'ACTIVE';
         this.lastShot = 0;
 
-        this.mesh = createWizardMesh(team, this.type);
+        this.mesh = createWizardMesh(team, this.type, this.level);
         this.mesh.position.set(x, 0, z);
         this.mesh.userData = { entity: this };
         scene.add(this.mesh);
@@ -475,16 +477,38 @@ class WizardEntity {
     }
 
     triggerRecovery() {
-        let base = this.team === 'player' ? playerBasePos : enemyBasePos;
-        this.mesh.position.set(base.x, 0, base.z);
-        this.hp = this.maxHp;
-        this.state = 'RETURNING';
+        if (this.level >= 4) {
+            // Level 4: Instant Teleport back to castle to heal instantly!
+            let base = this.team === 'player' ? playerBasePos : enemyBasePos;
+            this.mesh.position.set(base.x, 0, base.z);
+            this.hp = this.maxHp;
+            this.state = 'RETURNING';
+            createFloatingGoldText(base.x, 3.5, base.z, "✨ Teleport!");
+        } else {
+            // Level 1-3: Walk back to castle to recover
+            this.state = 'RETREATING';
+        }
     }
 
     specialize(type) {
         this.type = type;
+        this.level = 2; // Reaches L2 Elemental Specialization
+        this.rebuildMesh();
+    }
+
+    upgradeSwift() {
+        this.level = 3; // Reaches L3 Swift Boots
+        this.rebuildMesh();
+    }
+
+    upgradeTeleport() {
+        this.level = 4; // Reaches L4 Castle Teleport Master
+        this.rebuildMesh();
+    }
+
+    rebuildMesh() {
         scene.remove(this.mesh);
-        this.mesh = createWizardMesh(this.team, this.type);
+        this.mesh = createWizardMesh(this.team, this.type, this.level);
         this.mesh.position.set(this.homeX, 0, this.homeZ);
         this.mesh.userData = { entity: this };
         scene.add(this.mesh);
@@ -492,7 +516,10 @@ class WizardEntity {
 
     update(dt) {
         let base = this.team === 'player' ? playerBasePos : enemyBasePos;
-        let speed = 9 * (dt / 1000);
+
+        // Level 3+ Swift Boots gives 2.5x speed boost for quick castle healing!
+        let speedMult = (this.level >= 3) ? 2.5 : 1.0;
+        let speed = (9 * speedMult) * (dt / 1000);
 
         if (this.state === 'RETREATING') {
             if (this.moveTo(base.x, base.z, speed)) {
@@ -541,20 +568,18 @@ class KnightEntity {
         this.isMega = isMega;
         this.pathIdx = team === 'player' ? 0 : pathNodes.length - 1;
 
-        // Weak knights have 15 HP (1-hit kill), Mega Knights have 160 HP
         this.hp = isMega ? 160 : 15;
         this.maxHp = this.hp;
         this.speed = isMega ? 4.2 : 5.8;
         this.range = isMega ? 3.5 : 2.5;
         this.lastAttack = 0;
-        this.slowTimer = 0; // Frozen / Slow status effect timer
+        this.slowTimer = 0;
 
         this.mesh = createKnightMesh(team, isMega);
         const startPos = pathNodes[this.pathIdx];
         this.mesh.position.set(startPos.x, 0, startPos.z);
         scene.add(this.mesh);
 
-        // 3D Health Bar Sprite for Mega Knights
         if (isMega) {
             const mat = new THREE.SpriteMaterial({ map: createHealthBarTexture(this.hp, this.maxHp), transparent: true });
             this.hpSprite = new THREE.Sprite(mat);
@@ -576,7 +601,6 @@ class KnightEntity {
         let now = Date.now();
         let attacked = false;
 
-        // Update Slow status effect
         if (this.slowTimer > 0) {
             this.slowTimer -= dt / 1000;
         }
@@ -627,7 +651,6 @@ class KnightEntity {
                     this.mesh.rotation.y = angle;
                 }
             } else {
-                // Reached Base Castle!
                 let dmgAmt = this.isMega ? 30 : 10;
                 if (this.team === 'player') enemyHp = Math.max(0, enemyHp - dmgAmt);
                 else playerHp = Math.max(0, playerHp - dmgAmt);
@@ -645,7 +668,7 @@ class ProjectileEntity {
     constructor(x, y, z, target, team, type) {
         this.target = target;
         this.team = team;
-        this.type = type; // 'standard', 'fire', 'ice', 'spear'
+        this.type = type;
         this.speed = (type === 'fire') ? 26 : 22;
 
         let color = 0xfbbf24;
@@ -681,14 +704,13 @@ class ProjectileEntity {
                 this.target.hp -= dmg;
                 if (this.target.isMega) this.target.updateHealthBar();
 
-                // Apply Slow status effect if hit by Ice Wizard!
                 if (this.type === 'ice') {
-                    this.target.slowTimer = 3.5; // Slowed for 3.5 seconds
+                    this.target.slowTimer = 3.5;
                 }
             }
 
             scene.remove(this.mesh);
-            return true; // Hit
+            return true;
         }
 
         let angle = Math.atan2(tx - this.mesh.position.x, tz - this.mesh.position.z);
@@ -701,11 +723,8 @@ class ProjectileEntity {
 // --- 7. AUTO KNIGHT WAVE SYSTEM & ENEMY AI ---
 function triggerKnightWave() {
     waveCount++;
-
-    // Increase frequency: waveInterval starts at 6.0s and decreases by 0.15s per wave down to min 2.2s
     waveInterval = Math.max(2.2, 6.0 - (waveCount * 0.15));
 
-    // Batch spawn 2-3 weak knights for both sides!
     const batchSize = Math.min(4, 2 + Math.floor(waveCount / 6));
     for (let i = 0; i < batchSize; i++) {
         setTimeout(() => {
@@ -716,7 +735,6 @@ function triggerKnightWave() {
 }
 
 setInterval(() => {
-    // Enemy AI builds wizards on Red Slots (X > 0)
     if (Math.random() < 0.25) {
         let availableSlots = wizardSlots.filter(s => (s.team === 'enemy' || s.x > 0) && !wizards.find(w => w.homeX === s.x && w.homeZ === s.z));
         if (availableSlots.length > 0) {
@@ -724,11 +742,11 @@ setInterval(() => {
             const wizType = Math.random() < 0.5 ? 'fire' : 'ice';
             const wiz = new WizardEntity(slot.x, slot.z, 'enemy');
             wiz.specialize(wizType);
+            if (Math.random() < 0.4) wiz.upgradeSwift();
             wizards.push(wiz);
         }
     }
 
-    // Enemy AI occasionally summons a Red Mega Knight!
     if (Math.random() < 0.15) {
         knights.push(new KnightEntity('enemy', true));
     }
@@ -748,7 +766,6 @@ function updateHUD() {
     document.getElementById('enemyHpFill').style.width = enemyHp + '%';
 }
 
-// Spawn Mega Knight Button (40g)
 document.getElementById('btn-knight').onclick = () => {
     if (gold >= 40) {
         gold -= 40;
@@ -804,30 +821,81 @@ document.getElementById('btn-close-upgrade').onclick = () => {
     selectedWizard = null;
 };
 
+// Level 1 -> 2 Fire Specialization
 document.getElementById('btn-upgrade-fire').onclick = () => {
     if (!selectedWizard) return;
     if (gold >= 40) {
         gold -= 40;
         selectedWizard.specialize('fire');
         updateHUD();
-        document.getElementById('upgrade-modal').classList.add('hidden');
+        openUpgradeModal(selectedWizard);
     } else alert("Not enough gold!");
 };
 
+// Level 1 -> 2 Ice Specialization
 document.getElementById('btn-upgrade-ice').onclick = () => {
     if (!selectedWizard) return;
     if (gold >= 40) {
         gold -= 40;
         selectedWizard.specialize('ice');
         updateHUD();
-        document.getElementById('upgrade-modal').classList.add('hidden');
+        openUpgradeModal(selectedWizard);
+    } else alert("Not enough gold!");
+};
+
+// Level 2 -> 3 Swift Boots
+document.getElementById('btn-upgrade-swift').onclick = () => {
+    if (!selectedWizard) return;
+    if (gold >= 50) {
+        gold -= 50;
+        selectedWizard.upgradeSwift();
+        updateHUD();
+        openUpgradeModal(selectedWizard);
+    } else alert("Not enough gold!");
+};
+
+// Level 3 -> 4 Castle Teleport
+document.getElementById('btn-upgrade-teleport').onclick = () => {
+    if (!selectedWizard) return;
+    if (gold >= 80) {
+        gold -= 80;
+        selectedWizard.upgradeTeleport();
+        updateHUD();
+        openUpgradeModal(selectedWizard);
     } else alert("Not enough gold!");
 };
 
 function openUpgradeModal(wiz) {
     selectedWizard = wiz;
     const typeLabel = wiz.type === 'fire' ? '🔥 Fire Wizard' : (wiz.type === 'ice' ? '❄️ Ice Wizard' : 'Standard Wizard');
-    document.getElementById('wiz-level').innerText = typeLabel;
+    const rankLabel = `L${wiz.level} ${typeLabel}` + (wiz.level === 3 ? ' (+Swift Boots)' : (wiz.level >= 4 ? ' (+Teleport Master)' : ''));
+
+    document.getElementById('wiz-level').innerText = rankLabel;
+
+    const btnFire = document.getElementById('btn-upgrade-fire');
+    const btnIce = document.getElementById('btn-upgrade-ice');
+    const btnSwift = document.getElementById('btn-upgrade-swift');
+    const btnTeleport = document.getElementById('btn-upgrade-teleport');
+    const maxMsg = document.getElementById('wiz-max-msg');
+
+    // Hide all first
+    btnFire.style.display = 'none';
+    btnIce.style.display = 'none';
+    btnSwift.style.display = 'none';
+    btnTeleport.style.display = 'none';
+    maxMsg.style.display = 'none';
+
+    if (wiz.level === 1) {
+        btnFire.style.display = 'block';
+        btnIce.style.display = 'block';
+    } else if (wiz.level === 2) {
+        btnSwift.style.display = 'block';
+    } else if (wiz.level === 3) {
+        btnTeleport.style.display = 'block';
+    } else {
+        maxMsg.style.display = 'block';
+    }
+
     document.getElementById('upgrade-modal').classList.remove('hidden');
 }
 
@@ -915,14 +983,12 @@ function animate() {
     let dt = now - lastTime;
     lastTime = now;
 
-    // Auto Knight Wave Spawning Timer
     waveTimer += dt / 1000;
     if (waveTimer >= waveInterval) {
         waveTimer = 0;
         triggerKnightWave();
     }
 
-    // Update entities
     wizards.forEach(w => w.update(dt));
 
     for (let i = knights.length - 1; i >= 0; i--) {
@@ -946,7 +1012,6 @@ function animate() {
         }
     }
 
-    // Animate floating text popups
     for (let i = floatingTexts.length - 1; i >= 0; i--) {
         let ft = floatingTexts[i];
         ft.life -= dt / 1000;
@@ -958,7 +1023,6 @@ function animate() {
         }
     }
 
-    // Check Win/Loss
     if (playerHp <= 0) {
         alert("Red Team Wins! Refreshing battle...");
         playerHp = 100; enemyHp = 100; gold = 80; waveCount = 0; updateHUD();
@@ -971,12 +1035,7 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-// Initial camera frustum fitting & HUD update
 updateCameraViewport();
 updateHUD();
-
-// Trigger initial wave
 triggerKnightWave();
-
-// Start Loop
 requestAnimationFrame(animate);

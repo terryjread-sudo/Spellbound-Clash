@@ -38,7 +38,7 @@
             </div>
         </div>
 
-        <div id="info-banner">⚔️ Waves of 1-hit knights spawn automatically! Summon Mega Knights or specialize Wizards into 🔥 Fire or ❄️ Ice!</div>
+        <div id="info-banner">⚔️ Auto-spawning weak knights! Specialize Wizards into 🔥 Fire / ❄️ Ice, then unlock ⚡ Swift Boots & ✨ Castle Teleport!</div>
 
         <!-- Bottom Controls -->
         <div id="controls">
@@ -62,12 +62,21 @@
     <!-- Wizard Upgrade Modal -->
     <div id="upgrade-modal" class="modal hidden">
         <div class="modal-content">
-            <h2>🧙 Wizard Mastery</h2>
-            <p>Current: <span id="wiz-level">1 (Standard)</span></p>
+            <h2>🧙 Wizard Upgrade & Mastery</h2>
+            <p>Current Rank: <strong id="wiz-level" style="color: #38bdf8;">L1 (Standard)</strong></p>
+            
             <div id="upgrade-branch" style="display: flex; flex-direction: column; gap: 10px; margin: 15px 0;">
+                <!-- Level 1 -> 2 Choice -->
                 <button id="btn-upgrade-fire" class="btn" style="background: linear-gradient(135deg, #ea580c, #c2410c);">🔥 Fire Wizard (40g) - High Blast Damage</button>
                 <button id="btn-upgrade-ice" class="btn" style="background: linear-gradient(135deg, #0284c7, #0369a1);">❄️ Ice Wizard (40g) - Freezing Slow Effect</button>
-                <button id="btn-upgrade-max" class="btn btn-gold" style="display: none;">✨ Max Power Upgrade (80g)</button>
+                
+                <!-- Level 2 -> 3 Mobility Upgrade -->
+                <button id="btn-upgrade-swift" class="btn btn-gold" style="display: none;">⚡ Swift Boots (50g) - Fast Castle Healing Retreat</button>
+                
+                <!-- Level 3 -> 4 Teleport Upgrade -->
+                <button id="btn-upgrade-teleport" class="btn btn-gold" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9); display: none;">✨ Castle Teleport (80g) - Instant Castle Healing</button>
+                
+                <div id="wiz-max-msg" style="display: none; color: #a855f7; font-weight: 800; font-size: 16px;">✨ MAX POWER UNLOCKED!</div>
             </div>
             <button id="btn-close-upgrade" class="btn btn-dark" style="margin-top: 5px;">Close</button>
         </div>
