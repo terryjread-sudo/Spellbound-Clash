@@ -1300,3 +1300,509 @@ function animate() {
 updateCameraViewport();
 updateHUD();
 requestAnimationFrame(animate);
+
+
+// --- V5.3 MODEL OVERHAUL ---
+document.getElementById('version-badge').textContent = 'V5.3';
+
+function v53AddEye(group, x, y, z, size=0.04, color=0x111827) {
+    const eye = mesh(new THREE.SphereGeometry(size, 6, 6), new THREE.MeshBasicMaterial({ color }), x, y, z);
+    eye.castShadow = false;
+    group.add(eye);
+}
+function v53AddBrow(group, x, y, z, rot=0) {
+    const brow = mesh(new THREE.BoxGeometry(0.12, 0.03, 0.03), mat(0x2a1b16, 1), x, y, z);
+    brow.rotation.z = rot;
+    group.add(brow);
+}
+function v53Katana(group, x, y, z, team='player') {
+    const handle = mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.9, 7), mat(0x3a2318, .9), x, y, z);
+    handle.rotation.z = -0.15;
+    group.add(handle);
+    const guard = mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.05, 10), mat(0xe2b950, .4, .7), x+0.05, y+0.34, z);
+    guard.rotation.x = Math.PI/2;
+    guard.rotation.z = -0.15;
+    group.add(guard);
+    const blade = mesh(new THREE.BoxGeometry(0.08, 1.18, 0.08), mat(0xd9e3ea, .2, .85), x+0.12, y+0.88, z+0.02);
+    blade.rotation.z = -0.36;
+    group.add(blade);
+    const tip = mesh(new THREE.ConeGeometry(0.05, 0.18, 6), mat(0xd9e3ea, .2, .85), x+0.33, y+1.39, z+0.02);
+    tip.rotation.z = -0.36;
+    group.add(tip);
+    return { handle, blade };
+}
+function v53Naginata(group, x, y, z) {
+    const shaft = mesh(new THREE.CylinderGeometry(0.05, 0.055, 3.2, 8), mat(0x5b3625, .95), x, y, z);
+    shaft.rotation.z = -0.22;
+    group.add(shaft);
+    const collar = mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.1, 8), mat(0xe4ba5b, .4, .6), x+0.27, y+1.45, z);
+    collar.rotation.z = -0.22;
+    group.add(collar);
+    const blade = mesh(new THREE.BoxGeometry(0.13, 1.08, 0.09), mat(0xe3edf3, .2, .88), x+0.54, y+1.86, z+0.03);
+    blade.rotation.z = -0.24;
+    group.add(blade);
+    const hook = mesh(new THREE.BoxGeometry(0.1, 0.28, 0.08), mat(0xe3edf3, .2, .88), x+0.68, y+2.28, z+0.03);
+    hook.rotation.z = -0.65;
+    group.add(hook);
+    return { shaft, blade };
+}
+function v53BackBanner(parent, ally=true, large=false) {
+    const pole = mesh(new THREE.CylinderGeometry(0.04,0.04,large?2.2:1.8,7), mat(0x473426,.9), 0, large?2.05:1.85, -0.34);
+    parent.add(pole);
+    const cloth = mesh(new THREE.BoxGeometry(large?0.7:0.55, large?0.92:0.72, 0.05), mat(ally?0x4aa4dc:0xd45163, .6), large?0.36:0.28, large?2.38:2.14, -0.34);
+    cloth.userData.banner = true;
+    parent.add(cloth);
+    return cloth;
+}
+
+createKnightMesh = function(team, isMega = false) {
+    const g = new THREE.Group();
+    const ally = team === 'player';
+    const lacquer = mat(ally ? 0x294d77 : 0x7f2937, 0.45, 0.38);
+    const cloth = mat(ally ? 0x324a5f : 0x4a262f, 0.9);
+    const silk = mat(ally ? 0x3ea2d5 : 0xd45163, 0.58);
+    const goldM = mat(0xd9aa3d, 0.3, 0.68);
+    const steel = mat(0xd9e2ea, 0.18, 0.86);
+    const skin = mat(isMega ? 0xeab6a0 : 0xe2ab8e, 0.78);
+    const dark = mat(0x191919, 0.75);
+    const hair = mat(0x1f1414, 0.95);
+
+    // torso and armour skirts
+    const waist = mesh(new THREE.CylinderGeometry(isMega?0.62:0.5, isMega?0.72:0.6, isMega?1.2:1.05, 10), cloth, 0, 1.0, 0);
+    g.add(waist);
+    for (let i = 0; i < 4; i++) {
+        const lamella = mesh(new THREE.BoxGeometry(isMega?1.26:1.02, 0.18, 0.62), lacquer, 0, 0.72 + i * 0.22, 0.06);
+        g.add(lamella);
+    }
+    const chest = mesh(new THREE.BoxGeometry(isMega?1.18:0.96, isMega?0.88:0.72, 0.62), lacquer, 0, 1.34, 0.08);
+    g.add(chest);
+    g.add(mesh(new THREE.BoxGeometry(isMega?1.34:1.08, 0.12, 0.18), goldM, 0, 1.68, 0.36));
+    g.add(mesh(new THREE.CylinderGeometry(isMega?0.58:0.48,isMega?0.58:0.48,0.12,10), goldM, 0, 0.77, 0));
+
+    // head/helmet or onna-musha styling
+    const head = mesh(new THREE.SphereGeometry(isMega?0.34:0.31, 10, 8), skin, 0, 1.92, 0.02);
+    g.add(head);
+    v53AddEye(g, -0.1, 1.95, 0.28, 0.038); v53AddEye(g, 0.1, 1.95, 0.28, 0.038);
+    v53AddBrow(g, -0.1, 2.03, 0.24, -0.15); v53AddBrow(g, 0.1, 2.03, 0.24, 0.15);
+
+    let flourish;
+    if (isMega) {
+        g.add(mesh(new THREE.SphereGeometry(0.39, 10, 8, 0, Math.PI*2, 0, Math.PI/1.65), mat(0x642226, .55, .2), 0, 2.1, 0));
+        g.add(mesh(new THREE.BoxGeometry(0.7, 0.14, 0.38), goldM, 0, 2.22, 0.2));
+        const ponyTail = mesh(new THREE.CylinderGeometry(0.09, 0.13, 0.74, 7), hair, 0, 1.78, -0.28);
+        ponyTail.rotation.x = 0.45;
+        g.add(ponyTail);
+        // hair side locks to read as Onna-Musha from distance
+        g.add(mesh(new THREE.CylinderGeometry(0.05,0.07,0.44,6), hair, -0.24, 1.85, 0.05));
+        g.add(mesh(new THREE.CylinderGeometry(0.05,0.07,0.44,6), hair, 0.24, 1.85, 0.05));
+        flourish = ponyTail;
+    } else {
+        const kabuto = mesh(new THREE.SphereGeometry(0.42, 10, 7, 0, Math.PI*2, 0, Math.PI/1.7), lacquer, 0, 2.11, 0);
+        g.add(kabuto);
+        const neckGuard = mesh(new THREE.CylinderGeometry(0.34,0.44,0.2,10), lacquer, 0, 1.72, -0.08);
+        g.add(neckGuard);
+        const horns = mesh(new THREE.TorusGeometry(0.26,0.05,6,14,Math.PI), goldM, 0, 2.36, 0.05);
+        horns.rotation.z = Math.PI;
+        g.add(horns);
+        flourish = horns;
+    }
+
+    const leftArm = new THREE.Group();
+    leftArm.position.set(-(isMega?0.72:0.62), 1.38, 0);
+    leftArm.add(mesh(new THREE.CylinderGeometry(0.13,0.17,0.8,8), lacquer, 0, -0.28, 0));
+    const leftFore = mesh(new THREE.CylinderGeometry(0.1,0.13,0.62,8), cloth, 0.04, -0.72, 0.05); leftFore.rotation.z = 0.1; leftArm.add(leftFore);
+    const shoulderL = mesh(new THREE.SphereGeometry(isMega?0.24:0.2, 8, 6), lacquer, 0.02, 0.03, 0); leftArm.add(shoulderL);
+    g.add(leftArm);
+
+    const rightArm = new THREE.Group();
+    rightArm.position.set(isMega?0.72:0.62, 1.38, 0);
+    rightArm.add(mesh(new THREE.CylinderGeometry(0.13,0.17,0.8,8), lacquer, 0, -0.28, 0));
+    const rightFore = mesh(new THREE.CylinderGeometry(0.1,0.13,0.62,8), cloth, -0.04, -0.72, 0.05); rightFore.rotation.z = -0.1; rightArm.add(rightFore);
+    const shoulderR = mesh(new THREE.SphereGeometry(isMega?0.24:0.2, 8, 6), lacquer, -0.02, 0.03, 0); rightArm.add(shoulderR);
+    g.add(rightArm);
+
+    let weaponMain;
+    if (isMega) {
+        weaponMain = v53Naginata(g, 1.08, 1.42, 0.03).blade;
+        const ribbon = mesh(new THREE.BoxGeometry(0.1,0.52,0.03), silk, 0.34, 2.0, 0.12); ribbon.userData.banner = true; g.add(ribbon);
+    } else {
+        weaponMain = v53Katana(g, 0.72, 0.75, 0.12, team).blade;
+    }
+
+    const shield = mesh(new THREE.BoxGeometry(isMega?0.24:0.18, isMega?0.5:0.4, 0.08), goldM, -0.28, 1.12, 0.36);
+    shield.rotation.z = 0.1;
+    leftArm.add(shield);
+
+    const leftLeg = new THREE.Group(); leftLeg.position.set(-(isMega?0.25:0.22), 0.6, 0);
+    leftLeg.add(mesh(new THREE.CylinderGeometry(0.12,0.16,0.75,7), dark, 0, -0.14, 0));
+    leftLeg.add(mesh(new THREE.BoxGeometry(0.24,0.14,0.42), dark, 0, -0.54, 0.08));
+    const rightLeg = new THREE.Group(); rightLeg.position.set(isMega?0.25:0.22, 0.6, 0);
+    rightLeg.add(mesh(new THREE.CylinderGeometry(0.12,0.16,0.75,7), dark, 0, -0.14, 0));
+    rightLeg.add(mesh(new THREE.BoxGeometry(0.24,0.14,0.42), dark, 0, -0.54, 0.08));
+    g.add(leftLeg, rightLeg);
+
+    const banner = v53BackBanner(g, ally, isMega);
+    if (isMega) {
+        const aura = new THREE.PointLight(ally ? 0x56b7f1 : 0xffb267, 1.25, 5.5);
+        aura.position.set(0, 1.8, 0);
+        g.add(aura);
+        g.scale.setScalar(1.52);
+    }
+
+    g.userData.parts = { leftArm, rightArm, leftLeg, rightLeg, plume: flourish, banner, weaponMain };
+    return g;
+};
+
+createWizardMesh = function(team, type = 'standard', level = 1) {
+    const g = new THREE.Group();
+    const ally = team === 'player';
+    let robe = ally ? 0xf0eadf : 0x5b3043;
+    let accent = ally ? 0x2f5f92 : 0xa33b32;
+    let spirit = 0xf3c85f;
+    if (type === 'fire') { robe = 0xf0d7b4; accent = 0xc94c25; spirit = 0xff6a00; }
+    if (type === 'ice') { robe = 0xddeff5; accent = 0x4b9fbd; spirit = 0x7fd9ff; }
+    const robeMat = mat(robe, .78);
+    const accentMat = mat(accent, .55, .18);
+    const trimMat = mat(0xe1bf6a, .34, .56);
+    const skin = mat(0xe4af8a, .82);
+    const ink = mat(0x141414, .82);
+    const wood = mat(0x6b442c, .92);
+    const crystal = mat(spirit, .22, .08, spirit);
+    crystal.emissiveIntensity = level >= 4 ? 1.5 : 1.0;
+
+    const robeBody = mesh(new THREE.ConeGeometry(0.78, 1.78, 12), robeMat, 0, 0.86, 0); g.add(robeBody);
+    const shoulder = mesh(new THREE.CylinderGeometry(0.56,0.62,0.32,10), accentMat, 0, 1.38, 0); g.add(shoulder);
+    const sash = mesh(new THREE.CylinderGeometry(0.54,0.54,0.16,10), trimMat, 0, 1.02, 0); g.add(sash);
+    const sleeveL = new THREE.Group(); sleeveL.position.set(-0.58, 1.22, 0); sleeveL.add(mesh(new THREE.BoxGeometry(0.46,0.7,0.48), robeMat, 0, -0.12, 0.02)); g.add(sleeveL);
+    const sleeveR = new THREE.Group(); sleeveR.position.set(0.58, 1.22, 0); sleeveR.add(mesh(new THREE.BoxGeometry(0.46,0.7,0.48), robeMat, 0, -0.12, 0.02)); g.add(sleeveR);
+    const head = mesh(new THREE.SphereGeometry(0.32, 10, 8), skin, 0, 1.82, 0); g.add(head);
+    v53AddEye(g, -0.1, 1.86, 0.27, 0.034); v53AddEye(g, 0.1, 1.86, 0.27, 0.034);
+    v53AddBrow(g, -0.1, 1.95, 0.23, -0.12); v53AddBrow(g, 0.1, 1.95, 0.23, 0.12);
+    const mouth = mesh(new THREE.BoxGeometry(0.12,0.02,0.02), mat(0x8b4f41, 1), 0, 1.73, 0.3); g.add(mouth);
+    const hat = mesh(new THREE.CylinderGeometry(0.2,0.32,0.92,7), ink, 0, 2.48, 0); g.add(hat);
+    const talisman = mesh(new THREE.BoxGeometry(0.26,0.62,0.03), mat(0xfff6df,.98), 0, 2.06, 0.28); talisman.rotation.x = 0.1; g.add(talisman);
+    const paperA = mesh(new THREE.BoxGeometry(0.22,0.42,0.03), mat(0xfff6df,.98), -0.42, 1.22, 0.52); paperA.rotation.z = -0.1; g.add(paperA);
+    const paperB = mesh(new THREE.BoxGeometry(0.22,0.42,0.03), mat(0xfff6df,.98), 0.42, 1.05, 0.52); paperB.rotation.z = 0.12; g.add(paperB);
+    const staffGroup = new THREE.Group();
+    staffGroup.position.set(0.68, 1.18, 0.06);
+    staffGroup.add(mesh(new THREE.CylinderGeometry(0.05,0.06,2.3,8), wood, 0, 0, 0));
+    staffGroup.add(mesh(new THREE.BoxGeometry(0.24,0.08,0.08), trimMat, 0, 0.96, 0));
+    const crystalObj = mesh(type==='fire'?new THREE.DodecahedronGeometry(0.26,0):new THREE.OctahedronGeometry(0.26,0), crystal, 0, 1.18, 0);
+    staffGroup.add(crystalObj);
+    const light = new THREE.PointLight(spirit, 1.1, 4); light.position.set(0,1.18,0); staffGroup.add(light);
+    g.add(staffGroup);
+    if (level >= 3) {
+        const boot = mat(0xe0b84c, .38, .5);
+        g.add(mesh(new THREE.BoxGeometry(0.28,0.18,0.48), boot, -0.24, 0.16, 0.06));
+        g.add(mesh(new THREE.BoxGeometry(0.28,0.18,0.48), boot, 0.24, 0.16, 0.06));
+    }
+    if (level >= 4) {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.07, 8, 28), new THREE.MeshBasicMaterial({color:0xb669ff, transparent:true, opacity:.76}));
+        ring.rotation.x = Math.PI/2; ring.position.y = 0.18; ring.userData.teleRing = true; g.add(ring);
+    }
+    g.userData.parts = { leftArm: sleeveL, rightArm: sleeveR, staffGroup, crystal: crystalObj, hat, papers:[paperA,paperB,talisman] };
+    return g;
+};
+
+createSoheiMesh = function(team) {
+    const g = new THREE.Group();
+    const ally = team === 'player';
+    const robeMat = mat(ally ? 0xb8854e : 0x7b5538, .85);
+    const trimMat = mat(ally ? 0x305b91 : 0x8c2f3c, .58);
+    const straw = mat(0xbe9d62, .95);
+    const skin = mat(0xdfa77f, .82);
+    const wood = mat(0x5f3923, .9);
+    const dark = mat(0x251c18, .9);
+    g.add(mesh(new THREE.ConeGeometry(0.82,1.75,12), robeMat, 0, 0.9, 0));
+    g.add(mesh(new THREE.CylinderGeometry(0.58,0.58,0.16,10), trimMat, 0, 1.03, 0));
+    const head = mesh(new THREE.SphereGeometry(0.3,10,8), skin, 0, 1.82, 0); g.add(head);
+    v53AddEye(g, -0.1, 1.86, 0.26, 0.035); v53AddEye(g, 0.1, 1.86, 0.26, 0.035);
+    const hat = mesh(new THREE.CylinderGeometry(0.08,0.88,0.42,14), straw, 0, 2.12, 0); g.add(hat);
+    const rim = mesh(new THREE.CylinderGeometry(0.95,0.95,0.05,16), straw, 0, 2.0, 0); g.add(rim);
+    const beads = new THREE.Mesh(new THREE.TorusGeometry(0.22,0.03,6,18), mat(0x6b3d2e,.9)); beads.rotation.x = Math.PI/2; beads.position.set(0,1.55,0.25); g.add(beads);
+    const leftArm = new THREE.Group(); leftArm.position.set(-0.55,1.25,0); leftArm.add(mesh(new THREE.CylinderGeometry(0.12,0.15,0.72,8), robeMat, 0, -0.24, 0)); g.add(leftArm);
+    const rightArm = new THREE.Group(); rightArm.position.set(0.55,1.25,0); rightArm.add(mesh(new THREE.CylinderGeometry(0.12,0.15,0.72,8), robeMat, 0, -0.24, 0)); g.add(rightArm);
+    const drum = mesh(new THREE.CylinderGeometry(0.58,0.58,0.62,16), mat(0x8b2d20,.7), -0.78, 1.0, 0); drum.rotation.z = Math.PI/2; g.add(drum);
+    drum.add(mesh(new THREE.CylinderGeometry(0.42,0.42,0.64,16), mat(0xd9b787,.95), 0, 0, 0));
+    const drumstickL = mesh(new THREE.CylinderGeometry(0.03,0.03,0.72,6), wood, -0.08, 1.05, 0.45); drumstickL.rotation.z = -0.85; g.add(drumstickL);
+    const drumstickR = mesh(new THREE.CylinderGeometry(0.03,0.03,0.72,6), wood, 0.08, 1.15, 0.3); drumstickR.rotation.z = 0.55; g.add(drumstickR);
+    const leftLeg = new THREE.Group(); leftLeg.position.set(-0.22,0.58,0); leftLeg.add(mesh(new THREE.CylinderGeometry(0.12,0.15,0.72,7), dark, 0, -0.16, 0)); g.add(leftLeg);
+    const rightLeg = new THREE.Group(); rightLeg.position.set(0.22,0.58,0); rightLeg.add(mesh(new THREE.CylinderGeometry(0.12,0.15,0.72,7), dark, 0, -0.16, 0)); g.add(rightLeg);
+    g.userData.parts = { leftArm, rightArm, leftLeg, rightLeg, drum, hat, plume: hat, drumstickL, drumstickR };
+    return g;
+};
+
+makeTree = function(x, z) {
+    const t = new THREE.Group();
+    const trunk = mesh(new THREE.CylinderGeometry(0.22, 0.34, 2.8, 8), mat(0x694128, .96), 0, 1.4, 0);
+    t.add(trunk);
+    for (let i = 0; i < 6; i++) {
+        const bloom = mesh(new THREE.SphereGeometry(0.62 + (i%2)*0.09, 8, 6), mat(i%2?0xf1afc6:0xe9c3d8,.82), Math.sin(i*1.1)*0.8, 2.8 + Math.cos(i*1.3)*0.28, Math.cos(i*1.1)*0.8);
+        t.add(bloom);
+    }
+    // Sacred rope hook markers for Shimenawa placement
+    const postL = mesh(new THREE.BoxGeometry(0.12, 0.4, 0.12), mat(0x5c3321,.95), -0.62, 1.95, 0);
+    const postR = mesh(new THREE.BoxGeometry(0.12, 0.4, 0.12), mat(0x5c3321,.95), 0.62, 1.95, 0);
+    const rope = mesh(new THREE.CylinderGeometry(0.03,0.03,1.16,6), mat(0xecdba8,.92), 0, 2.08, 0); rope.rotation.z = Math.PI/2;
+    t.add(postL, postR, rope);
+    [-0.35, 0, 0.35].forEach((dx, idx) => {
+        const paper = mesh(new THREE.BoxGeometry(0.08,0.18,0.02), mat(0xfff8e9,.98), dx, 1.9 - idx*0.04, 0.08);
+        t.add(paper);
+    });
+    t.position.set(x,0,z);
+    scene.add(t);
+    sacredTrees.push(t);
+    return t;
+};
+makeSacredTreePairs = function() {
+    for (let i = 1; i < pathNodes.length - 1; i += 2) {
+        const a = pathNodes[i-1], b = pathNodes[i];
+        const dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx,dz) || 1, nx = -dz/l, nz = dx/l;
+        const midX = b.x, midZ = b.z;
+        makeTree(midX + nx * 4.4, midZ + nz * 4.4);
+        makeTree(midX - nx * 4.4, midZ - nz * 4.4);
+        const marker = new THREE.Mesh(new THREE.RingGeometry(1.1, 1.35, 24), new THREE.MeshBasicMaterial({color:0xf5deb3, side:THREE.DoubleSide, transparent:true, opacity:.35}));
+        marker.rotation.x = -Math.PI/2; marker.position.set(midX,0.06,midZ);
+        scene.add(marker); sacredTrees.push(marker);
+    }
+};
+
+refreshSlotMeshes = function() {
+    slotMeshes.forEach(m => scene.remove(m.parent || m));
+    slotMeshes.length = 0;
+    wizardSlots.forEach(s => {
+        if (gameActive && CAMPAIGN_LEVELS[currentLevelIndex].role === 'defend' && s.team === 'enemy') return;
+        const isPlayerSlot = s.team === 'player' || s.x < 0;
+        const primary = isPlayerSlot ? 0x46a8dc : 0xd75b75;
+        const secondary = isPlayerSlot ? 0x204f72 : 0x6c2433;
+        const group = new THREE.Group();
+        const base = mesh(new THREE.CylinderGeometry(1.15, 1.32, 0.18, 20), mat(0x8d9a93,.96), 0, 0.07, 0);
+        const ring = new THREE.Mesh(new THREE.RingGeometry(0.66, 0.98, 28), new THREE.MeshBasicMaterial({ color: primary, side: THREE.DoubleSide, transparent: true, opacity: 0.8 }));
+        ring.rotation.x = -Math.PI / 2;
+        group.add(base, ring);
+        [0, Math.PI/2, Math.PI, Math.PI*1.5].forEach(a => {
+            const lantern = mesh(new THREE.BoxGeometry(0.12, 0.32, 0.12), mat(secondary,.8), Math.cos(a)*1.05, 0.22, Math.sin(a)*1.05);
+            group.add(lantern);
+        });
+        const sigil = mesh(new THREE.CircleGeometry(0.28, 12), mat(primary,.55,.15), 0, 0.01, 0);
+        sigil.rotation.x = -Math.PI/2;
+        group.add(sigil);
+        group.position.set(s.x, 0.05, s.z);
+        group.userData = { isSlot:true, slotData:s };
+        ring.userData = { isSlot:true, slotData:s };
+        scene.add(group);
+        slotMeshes.push(ring);
+    });
+};
+
+function buildCastleStage(castle, ally, stage) {
+    while (castle.children.length) castle.remove(castle.children[0]);
+    const stone = mat(0xc8c2b5,.92), darkStone = mat(0x8d9098,.95), roof = mat(ally?0x234f75:0x7d2f38,.45,.16), wood = mat(0x5f3826,.9), gold = mat(0xdfb850,.3,.7), plaster = mat(0xf3ead8,.88);
+    const flagMat = mat(ally?0x4ba8dd:0xd75a74,.58);
+    // multi-tier base
+    castle.add(mesh(new THREE.CylinderGeometry(4.7,5.2,0.7,16), darkStone, 0,0.35,0));
+    castle.add(mesh(new THREE.CylinderGeometry(4.0,4.3,0.42,16), stone, 0,0.88,0));
+    const mainW = 3.7 + stage*0.45;
+    const keepH = 3.0 + stage*0.45;
+    castle.add(mesh(new THREE.BoxGeometry(mainW, keepH, mainW), plaster, 0, 1.1 + keepH/2, 0));
+    addBattlements(castle, mainW, mainW, 1.1 + keepH + 0.18, stone);
+    // roof tier 1
+    const roof1 = mesh(new THREE.CylinderGeometry(mainW*0.58, mainW*0.75, 0.3, 4), roof, 0, 1.4 + keepH, 0); roof1.rotation.y = Math.PI/4; castle.add(roof1);
+    if (stage >= 1) {
+        const upperW = mainW * 0.72;
+        castle.add(mesh(new THREE.BoxGeometry(upperW, 1.55, upperW), plaster, 0, 3.15 + keepH/2, 0));
+        const roof2 = mesh(new THREE.CylinderGeometry(upperW*0.6, upperW*0.78, 0.28, 4), roof, 0, 4.1 + keepH/2, 0); roof2.rotation.y = Math.PI/4; castle.add(roof2);
+    }
+    if (stage >= 2) {
+        const topW = mainW * 0.46;
+        castle.add(mesh(new THREE.BoxGeometry(topW, 1.15, topW), plaster, 0, 5.0 + keepH/2, 0));
+        const roof3 = mesh(new THREE.CylinderGeometry(topW*0.62, topW*0.82, 0.24, 4), roof, 0, 5.72 + keepH/2, 0); roof3.rotation.y = Math.PI/4; castle.add(roof3);
+        const finial = mesh(new THREE.CylinderGeometry(0.07,0.07,0.9,6), gold, 0, 6.22 + keepH/2, 0); castle.add(finial);
+    }
+    const towerPositions = [[-2.6,-2.6],[-2.6,2.6],[2.6,-2.6],[2.6,2.6]];
+    const towerHeight = 4.4 + stage*0.35;
+    towerPositions.forEach(([x,z]) => {
+        castle.add(mesh(new THREE.CylinderGeometry(0.78,0.92,towerHeight,12), stone, x, towerHeight/2, z));
+        castle.add(mesh(new THREE.CylinderGeometry(1.0,1.14,0.25,12), stone, x, towerHeight+0.1, z));
+        const tRoof = mesh(new THREE.CylinderGeometry(0.95,1.22,0.38,4), roof, x, towerHeight+0.45, z); tRoof.rotation.y = Math.PI/4; castle.add(tRoof);
+        if (stage >= 3) castle.add(mesh(new THREE.BoxGeometry(0.24,0.55,0.08), gold, x, towerHeight-0.6, z+0.82));
+    });
+    const gateFrame = mesh(new THREE.BoxGeometry(1.9,2.4,0.35), wood, 0,1.35, mainW/2+0.1); castle.add(gateFrame);
+    const gate = mesh(new THREE.BoxGeometry(1.32,2.0,0.22), darkStone, 0,1.2, mainW/2+0.25); castle.add(gate);
+    for (let x=-0.42;x<=0.42;x+=0.28) castle.add(mesh(new THREE.BoxGeometry(0.06,1.84,0.06), gold, x,1.2, mainW/2+0.34));
+    // decorations
+    if (stage >= 1) {
+        castle.add(mesh(new THREE.BoxGeometry(0.4,0.7,0.4), gold, -1.35, 1.2, mainW/2+0.45));
+        castle.add(mesh(new THREE.BoxGeometry(0.4,0.7,0.4), gold, 1.35, 1.2, mainW/2+0.45));
+    }
+    if (stage >= 2) {
+        const shachiL = mesh(new THREE.ConeGeometry(0.16,0.6,6), gold, -0.8, 4.35 + keepH/2, 0.0); shachiL.rotation.z = 0.4;
+        const shachiR = mesh(new THREE.ConeGeometry(0.16,0.6,6), gold, 0.8, 4.35 + keepH/2, 0.0); shachiR.rotation.z = -0.4;
+        castle.add(shachiL, shachiR);
+    }
+    const pole = mesh(new THREE.CylinderGeometry(0.05,0.05,2.2 + stage*0.2,7), wood, 0, 3.6 + stage, -(mainW/2)-0.3); castle.add(pole);
+    const flag = mesh(new THREE.BoxGeometry(1.15, 0.72, 0.05), flagMat, 0.56, 4.3 + stage, -(mainW/2)-0.3); flag.userData.banner = true; castle.add(flag);
+    castle.userData.stage = stage;
+    castle.userData.flag = flag;
+    castle.userData.animate = (time) => { if (flag) flag.rotation.y = Math.sin(time*0.003) * 0.16; };
+}
+applyCastleVisual = function() {
+    buildCastleStage(blueCastle, true, castleVisualLevel);
+    buildCastleStage(redCastle, false, Math.max(1, Math.min(castleVisualLevel, 2)));
+};
+applyCastleVisual();
+refreshSlotMeshes();
+
+const _baseKnightUpdate = KnightEntity.prototype.update;
+KnightEntity.prototype.update = function(dt) {
+    if (this.unitType === 'disruptor' && !this.mesh.userData.shinobiDecor) {
+        this.mesh.userData.shinobiDecor = true;
+        this.mesh.traverse(o => { if (o.material && o.material.color) o.material.color.setHex(0x2c3141); });
+        this.mesh.add(mesh(new THREE.CylinderGeometry(0.22,0.32,0.55,8), mat(0x171a23,.9), 0, 1.86, 0));
+        this.mesh.add(mesh(new THREE.BoxGeometry(0.4,0.18,0.22), mat(0x171a23,.95), 0, 1.72, 0.25));
+        this.mesh.add(mesh(new THREE.BoxGeometry(0.56,0.1,0.05), mat(0x6f7c9a,.7), 0.45, 1.02, 0.18));
+        const scarfA = mesh(new THREE.BoxGeometry(0.1,0.48,0.04), mat(0x5c6ea2,.55), -0.12, 1.32, -0.28);
+        const scarfB = mesh(new THREE.BoxGeometry(0.1,0.62,0.04), mat(0x5c6ea2,.55), 0.08, 1.25, -0.3);
+        scarfA.userData.banner = true; scarfB.userData.banner = true;
+        this.mesh.add(scarfA, scarfB);
+        if (this.mesh.userData.parts) this.mesh.userData.parts.banner = scarfB;
+    }
+    _baseKnightUpdate.call(this, dt);
+    const parts = this.mesh.userData.parts;
+    if (parts) {
+        const t = performance.now() * 0.01;
+        if (parts.weaponMain) parts.weaponMain.rotation.z += Math.sin(t + this.pathIdx) * 0.002;
+        if (parts.banner && parts.banner.userData.banner) parts.banner.rotation.y = Math.sin(t*0.6 + this.pathIdx) * 0.16;
+        if (this.unitType === 'disruptor') {
+            this.mesh.rotation.z = Math.sin(t + this.pathIdx) * 0.05;
+            this.mesh.position.y += Math.abs(Math.sin(t*1.6)) * 0.01;
+        }
+    }
+};
+
+WizardEntity.prototype.update = function(dt) {
+    const base = this.team === 'player' ? playerBasePos : enemyBasePos;
+    const parts = this.mesh.userData.parts;
+    const nowT = performance.now() * 0.01;
+    if (parts) {
+        if (parts.leftArm) parts.leftArm.rotation.z = Math.sin(nowT) * 0.08;
+        if (parts.rightArm) parts.rightArm.rotation.z = -Math.sin(nowT*1.1) * 0.08;
+        if (parts.staffGroup) parts.staffGroup.rotation.z = Math.sin(nowT*0.7) * 0.06;
+        if (parts.papers) parts.papers.forEach((p, i) => { p.rotation.z = Math.sin(nowT*0.8 + i) * 0.18; });
+        this.mesh.position.y = (this.state === 'ACTIVE' ? 0.02 : 0) + Math.abs(Math.sin(nowT*0.8 + this.homeX*0.05)) * 0.04;
+    }
+    if (this.state === 'SLEEPING') {
+        this.sleepTimer -= dt / 1000;
+        if (this.sleepTimer <= 0) {
+            this.state = 'ACTIVE';
+            this.mesh.traverse(o=>{ if(o.userData && o.userData.disruptionCage) this.mesh.remove(o); if(o.material&&o.material.emissive) o.material.emissive.setHex(0x000000); });
+            createFloatingGoldText(this.mesh.position.x,3,this.mesh.position.z,'✨ Awake');
+        } else {
+            this.mesh.rotation.z = Math.sin(nowT*0.7) * 0.06;
+        }
+        return;
+    }
+    const speedMult = (this.level >= 3) ? 2.5 : 1.0;
+    const speed = (4.2 * speedMult) * (dt / 1000);
+    if (this.state === 'RETREATING') {
+        if (this.route.length === 0) this.buildRoute(true);
+        const target = this.route[this.routePos];
+        if (target && this.moveTo(target.x, target.z, speed)) this.routePos++;
+        if (this.routePos >= this.route.length) { this.hp = this.maxHp; this.state = 'RETURNING'; this.buildRoute(false); }
+        return;
+    } else if (this.state === 'RETURNING') {
+        const target = this.route[this.routePos];
+        if (target && this.moveTo(target.x, target.z, speed)) this.routePos++;
+        if (this.routePos >= this.route.length) this.state = 'ACTIVE';
+        return;
+    }
+    let now = Date.now(), fireInterval = this.type === 'fire' ? 900 : 1300;
+    if (now - this.lastShot > fireInterval) {
+        let target = knights.find(k => k.team !== this.team && Math.hypot(k.mesh.position.x - this.mesh.position.x, k.mesh.position.z - this.mesh.position.z) < this.range);
+        if (target) {
+            projectiles.push(new ProjectileEntity(this.mesh.position.x, 1.8, this.mesh.position.z, target, this.team, this.type));
+            this.lastShot = now;
+            if (parts && parts.staffGroup) parts.staffGroup.rotation.z = -0.3;
+        }
+    }
+};
+
+SoheiEntity = class SoheiEntity extends WizardEntity {
+    constructor(x,z,team){
+        super(x,z,team);
+        scene.remove(this.mesh);
+        this.type='sohei'; this.range=10; this.mesh=createSoheiMesh(team); this.mesh.position.set(x,0,z); this.mesh.userData.entity=this; scene.add(this.mesh);
+    }
+    update(dt){
+        const t = performance.now() * 0.012;
+        const p = this.mesh.userData.parts;
+        if (p) {
+            p.leftArm.rotation.z = -0.45 + Math.sin(t) * 0.15;
+            p.rightArm.rotation.z = 0.45 - Math.sin(t) * 0.15;
+            if (p.drum) p.drum.rotation.x = Math.sin(t*0.5) * 0.08;
+            this.mesh.position.y = Math.abs(Math.sin(t)) * 0.03;
+        }
+        knights.filter(k=>k.team===this.team&&Math.hypot(k.mesh.position.x-this.mesh.position.x,k.mesh.position.z-this.mesh.position.z)<this.range).forEach(k=>k.drumBuff=.25);
+    }
+};
+
+makeBossMesh = function(type) {
+    const g = new THREE.Group();
+    if (type === 'gashadokuro') {
+        const bone = mat(0xe9e0ca,.88);
+        const skull = mesh(new THREE.SphereGeometry(1.34, 12, 10), bone, 0, 5.15, 0); g.add(skull);
+        g.add(mesh(new THREE.BoxGeometry(1.1,0.36,0.9), bone, 0, 4.35, 0.56));
+        g.add(mesh(new THREE.CylinderGeometry(0.75,0.94,4.3,8), bone, 0, 2.85, 0));
+        const ribs = [];
+        for (let i = -2; i <= 2; i++) { const rib = mesh(new THREE.TorusGeometry(0.95,0.06,6,16,Math.PI), bone, 0, 3.55 - i*0.33, 0); rib.rotation.z = Math.PI/2; g.add(rib); ribs.push(rib); }
+        const limbs=[];
+        [[-1.55,3.45,-0.35, 0.45],[1.55,3.45,-0.35,-0.45],[-0.95,1.2,0.1,0.08],[0.95,1.2,0.1,-0.08]].forEach(([x,y,z,rz])=>{const limb=mesh(new THREE.CylinderGeometry(0.2,0.28,4.4,8), bone, x,y,z); limb.rotation.z = rz; g.add(limb); limbs.push(limb);});
+        g.userData.parts = { skull, ribs, limbs, type };
+    } else if (type === 'namazu') {
+        const bodyMat = mat(0x495e68,.75), finMat = mat(0x6f8790,.8), whiskMat = mat(0xe3d6a4,.95);
+        const body = mesh(new THREE.SphereGeometry(2.0,16,10), bodyMat, 0,1.9,0); body.scale.z = 2.0; g.add(body);
+        const tail = mesh(new THREE.ConeGeometry(0.9,2.5,8), finMat, 0,2.0,-3.3); tail.rotation.x = -0.15; g.add(tail);
+        const head = mesh(new THREE.SphereGeometry(1.25,12,10), bodyMat, 0,2.05,2.3); head.scale.set(1.25,0.9,1.45); g.add(head);
+        const barbA = mesh(new THREE.CylinderGeometry(0.03,0.03,2.8,5), whiskMat, -0.7,2.0,3.0); barbA.rotation.z = 1.2; barbA.rotation.x = 0.35; g.add(barbA);
+        const barbB = mesh(new THREE.CylinderGeometry(0.03,0.03,2.8,5), whiskMat, 0.7,2.0,3.0); barbB.rotation.z = -1.2; barbB.rotation.x = -0.35; g.add(barbB);
+        const seal = mesh(new THREE.BoxGeometry(1.2,0.24,0.8), mat(0xd0b56c,.48,.52), 0,3.55,0.1); g.add(seal);
+        g.userData.parts = { body, tail, whiskers:[barbA,barbB], type };
+    } else {
+        const body = mesh(new THREE.SphereGeometry(1.42,12,10), mat(0x356d3f,.65), 0,1.45,0); g.add(body);
+        const necks=[], heads=[];
+        for (let i=0;i<8;i++){
+            const a=(i-3.5)*0.23; const color=[0xb33a2d,0x5f9e47,0x5a8cc8,0x7fcce0][i%4];
+            const neck=mesh(new THREE.CylinderGeometry(0.24,0.36,3.3,8), mat(0x2b6b3b,.72), Math.sin(a)*1.9, 2.7, Math.cos(a)*1.2); neck.rotation.z=a; g.add(neck); necks.push(neck);
+            const head=mesh(new THREE.SphereGeometry(0.58,10,8), mat(color,.55,.18), Math.sin(a)*2.85, 4.15, Math.cos(a)*1.85); g.add(head); heads.push(head);
+            g.add(mesh(new THREE.ConeGeometry(0.1,0.35,5), mat(0xf0e6c7,.95), Math.sin(a)*3.1, 4.35, Math.cos(a)*1.95));
+        }
+        g.userData.parts = { body, necks, heads, type };
+    }
+    return g;
+};
+
+const _baseBossUpdate = BossEntity.prototype.update;
+BossEntity.prototype.update = function(dt) {
+    _baseBossUpdate.call(this, dt);
+    const parts = this.mesh.userData.parts;
+    if (!parts) return;
+    const ratio = this.hp / this.maxHp;
+    const t = performance.now() * 0.004;
+    if (this.bossType === 'gashadokuro') {
+        parts.skull.rotation.y = Math.sin(t) * 0.18;
+        if (ratio < 0.66 && parts.ribs[0]) parts.ribs[0].visible = false;
+        if (ratio < 0.45 && parts.ribs[1]) parts.ribs[1].visible = false;
+        if (ratio < 0.3 && parts.limbs[0]) parts.limbs[0].rotation.z = 0.8;
+    } else if (this.bossType === 'namazu') {
+        parts.body.rotation.z = Math.sin(t*0.9) * 0.05;
+        parts.tail.rotation.x = -0.15 + Math.sin(t*2.2) * 0.24;
+        if (ratio < 0.5) parts.whiskers.forEach((w,i)=>w.rotation.z += (i? -1:1)*0.002);
+    } else if (this.bossType === 'orochi') {
+        parts.heads.forEach((h,i)=>{ h.position.y += Math.sin(t*1.2 + i*0.7) * 0.01; });
+        const visibleHeads = Math.max(1, Math.ceil(ratio * parts.heads.length));
+        parts.heads.forEach((h,i)=> h.visible = i < visibleHeads);
+        parts.necks.forEach((n,i)=> n.visible = i < visibleHeads);
+    }
+};
+
+showBattleText('V5.3 model overhaul loaded — sharper silhouettes, upgraded palaces and animated folklore units!');

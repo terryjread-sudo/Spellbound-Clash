@@ -1,5 +1,11 @@
-# Yōkai Siege V5.2
+# Yōkai Siege V5.3
 
-V5.2 adds Kotoba Rally Japanese learning, 10-second wave countdowns, team-coloured Torii Gates, improved kill rewards, defender-only tower slots, and multiple quality-of-life improvements.
+This build focuses on **model and presentation upgrades**:
 
-Upload `index.html`, `style.css`, `game.js`, and `README.md` to the root of the GitHub Pages repository.
+- Stronger unit silhouettes for Bushi, Onna-Musha, Onmyōji and Sōhei
+- Better palace upgrade geometry with visible multi-tier expansion
+- Proper katana and naginata weapon shapes
+- Richer walking/casting/drumming animations
+- Boss damage states for Gashadokuro, Namazu and Yamata no Orochi
+- Better sacred cherry trees and clearer placement markers
+- Added facial details, banners and costume accents
