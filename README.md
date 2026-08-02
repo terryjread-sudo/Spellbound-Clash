@@ -1,15 +1,13 @@
-# Yōkai Siege: Legends of Japan — V5
+# Yōkai Siege: Legends of Japan — V5.1
 
-A bright Japanese folklore tower-defence and lane-assault campaign for the browser.
+V5.1 improves battlefield clarity and interface controls:
 
-## V5 highlights
-- Ten alternating **Defend** and **Attack** missions.
-- Japanese castle/pagoda visuals with visible upgrade growth.
-- Bushi infantry, 80-gold Onna-Musha, Onmyōji towers, Shinobi disruptors and Sōhei drum supports.
-- Torii Gates placed on roads for temporary friendly speed buffs.
-- Shimenawa traps placed across roads near paired sacred cherry trees.
-- Final-wave folklore bosses: Gashadokuro, Namazu and Yamata no Orochi.
-- Brighter anime-inspired parchment-and-lacquer interface.
-- Reading spells, saved campaign stars, sound, particles and screen shake remain included.
+- Darker, textured terrain and a strongly outlined road
+- Visible V5.1 badge
+- Descriptions when hovering or focusing each build option
+- Adjustable Gold Rewards slider, saved in the browser
+- Working 1×/2× battle speed button
+- Working pause/resume button
+- Defend missions hide the enemy palace and its health display
 
-Upload `index.html`, `style.css`, `game.js` and `README.md` to the root of the GitHub Pages repository.
+Upload `index.html`, `style.css`, `game.js`, and `README.md` to the root of the GitHub Pages repository.

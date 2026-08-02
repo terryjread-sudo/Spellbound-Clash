@@ -1,4 +1,4 @@
-// --- Yokai Siege: Legends of Japan V5 ---
+// --- Yokai Siege: Legends of Japan V5.1 ---
 
 // --- 1. GAME STATE ---
 let gold = 80;
@@ -23,6 +23,9 @@ let enemyCastleMaxHp = 100;
 let playerWizardRangeBonus = 0;
 let castleArmour = 0;
 let currentQuestion = null;
+let timeScale = 1;
+let paused = false;
+let goldRewardRate = Number(localStorage.getItem('yokaiGoldRewardRate') || 75) / 100;
 
 // Auto Wave System Variables
 let waveCount = 0;
@@ -126,7 +129,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.45;
+renderer.toneMappingExposure = 1.08;
 container.appendChild(renderer.domElement);
 
 function updateCameraViewport() {
@@ -151,10 +154,10 @@ function updateCameraViewport() {
 window.addEventListener('resize', updateCameraViewport);
 
 // Lighting
-const ambientLight = new THREE.AmbientLight(0xfff4dc, 1.18);
+const ambientLight = new THREE.AmbientLight(0xfff4dc, 0.82);
 scene.add(ambientLight);
 
-const dirLight = new THREE.DirectionalLight(0xfff0c2, 1.35);
+const dirLight = new THREE.DirectionalLight(0xfff0c2, 1.05);
 dirLight.position.set(20, 45, 25);
 dirLight.castShadow = true;
 dirLight.shadow.mapSize.width = 2048;
@@ -167,12 +170,19 @@ dirLight.shadow.camera.top = 25;
 dirLight.shadow.camera.bottom = -25;
 scene.add(dirLight);
 
-const hemiLight = new THREE.HemisphereLight(0xbbe9ff, 0x5d7f52, 0.72);
+const hemiLight = new THREE.HemisphereLight(0xbbe9ff, 0x4f6b43, 0.52);
 scene.add(hemiLight);
 
 // --- 4. ENVIRONMENT & MESH BUILDERS ---
 const groundGeo = new THREE.PlaneGeometry(130, 78);
-const groundMat = new THREE.MeshStandardMaterial({ color: 0x2e6f40, roughness: 0.8, metalness: 0.1 });
+function makeGroundTexture(){
+    const c=document.createElement('canvas'); c.width=c.height=256; const x=c.getContext('2d');
+    x.fillStyle='#789b68'; x.fillRect(0,0,256,256);
+    for(let i=0;i<1800;i++){const v=85+Math.floor(Math.random()*55);x.fillStyle=`rgba(${v-25},${v+20},${v-35},${0.05+Math.random()*.12})`;x.fillRect(Math.random()*256,Math.random()*256,1+Math.random()*3,1+Math.random()*3)}
+    for(let i=0;i<65;i++){x.strokeStyle='rgba(47,83,42,.22)';x.lineWidth=1;x.beginPath();const px=Math.random()*256,py=Math.random()*256;x.moveTo(px,py);x.lineTo(px+Math.random()*5-2.5,py-3-Math.random()*5);x.stroke()}
+    const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(8,5);t.encoding=THREE.sRGBEncoding;return t;
+}
+const groundMat = new THREE.MeshStandardMaterial({ color: 0x789b68, map:makeGroundTexture(), roughness: 0.96, metalness: 0 });
 const ground = new THREE.Mesh(groundGeo, groundMat);
 ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
@@ -181,7 +191,8 @@ scene.add(ground);
 function buildPathMesh() {
     const group = new THREE.Group();
     const pathWidth = 3.6;
-    const pathMat = new THREE.MeshStandardMaterial({ color: 0xd9b679, roughness: 0.95 });
+    const edgeMat = new THREE.MeshStandardMaterial({ color: 0x785536, roughness: 1 });
+    const pathMat = new THREE.MeshStandardMaterial({ color: 0xc99a5d, roughness: 0.98 });
 
     for (let i = 0; i < pathNodes.length - 1; i++) {
         const p1 = pathNodes[i];
@@ -192,6 +203,9 @@ function buildPathMesh() {
         const len = Math.hypot(dx, dz);
         const angle = Math.atan2(dx, dz);
 
+        const edgeGeo = new THREE.PlaneGeometry(pathWidth + 1.15, len + (i < pathNodes.length - 2 ? pathWidth + 1.15 : 0));
+        const edge = new THREE.Mesh(edgeGeo, edgeMat);
+        edge.rotation.x = -Math.PI / 2; edge.rotation.z = -angle; edge.position.set((p1.x+p2.x)/2,0.014,(p1.z+p2.z)/2); edge.receiveShadow=true; group.add(edge);
         const segGeo = new THREE.PlaneGeometry(pathWidth, len + (i < pathNodes.length - 2 ? pathWidth : 0));
         const seg = new THREE.Mesh(segGeo, pathMat);
         seg.rotation.x = -Math.PI / 2;
@@ -564,7 +578,7 @@ class WizardEntity {
         this.hp -= amount;
         if (this.hp <= 0) {
             this.hp=0;
-            if(attackerTeam==='player' && this.team==='enemy'){gold+=35;updateHUD();createFloatingGoldText(this.mesh.position.x,2.5,this.mesh.position.z,'+35g');}
+            if(attackerTeam==='player' && this.team==='enemy'){const r=Math.max(1,Math.round(35*goldRewardRate));gold+=r;updateHUD();createFloatingGoldText(this.mesh.position.x,2.5,this.mesh.position.z,`+${r}g`);}
             this.triggerRecovery();
         }
     }
@@ -908,7 +922,7 @@ function castReadingSpell(qObj) {
     if(qObj.effect==='reinforce') for(let i=0;i<3;i++) setTimeout(()=>knights.push(new KnightEntity('player',false)),i*250);
     if(qObj.effect==='meteor') enemies.forEach(k=>{k.hp-=qObj.difficulty===3?70:45;if(k.isMega)k.updateHealthBar();});
     if(qObj.effect==='income') { goldIncome += 1; showBattleText('💰 Permanent gold income increased!'); }
-    const reward=10*qObj.difficulty; gold+=reward;
+    const reward=Math.max(1,Math.round(10*qObj.difficulty*goldRewardRate)); gold+=reward;
     if(readingStreak>0 && readingStreak%5===0){ enemies.forEach(k=>k.hp-=60); showBattleText('🔥 Five-answer streak: bonus meteor!'); }
     createFloatingGoldText(0,8,0,qObj.label+' +'+reward+'g');
 }
@@ -1119,7 +1133,8 @@ const particles=[];
 function burstParticles(pos,color,count=10){for(let i=0;i<count;i++){const m=new THREE.Mesh(new THREE.SphereGeometry(.12,5,5),new THREE.MeshBasicMaterial({color}));m.position.copy(pos);m.position.y+=1;scene.add(m);particles.push({mesh:m,v:new THREE.Vector3((Math.random()-.5)*8,Math.random()*7+2,(Math.random()-.5)*8),life:.65});}}
 function clearEntities(){[...knights].forEach(x=>x.destroy());[...wizards].forEach(x=>x.destroy());[...projectiles].forEach(x=>scene.remove(x.mesh));knights.length=wizards.length=projectiles.length=0;}
 function slotsForLevel(level){const left=level.slots.map(([x,z])=>({x,z,team:'player'}));const right=left.map(s=>({x:-s.x,z:s.z,team:'enemy'}));return [...left,...right];}
-function loadLevel(index){currentLevelIndex=index;const L=CAMPAIGN_LEVELS[index];gameActive=true;clearEntities();clearStructures();pathNodes=L.path.map(([x,z])=>({x,z}));playerBasePos=pathNodes[0];enemyBasePos=pathNodes[pathNodes.length-1];wizardSlots=slotsForLevel(L).filter(s=>distanceToPath(s.x,s.z)>2.3);scene.remove(pathMeshGroup);pathMeshGroup=buildPathMesh();scene.add(pathMeshGroup);blueCastle.position.set(playerBasePos.x-3,0,playerBasePos.z);redCastle.position.set(enemyBasePos.x+3,0,enemyBasePos.z);ground.material.color.setHex(L.theme);refreshSlotMeshes();makeSacredTreePairs();playerCastleMaxHp=120;enemyCastleMaxHp=160;playerHp=120;enemyHp=160;gold=85;goldIncome=0;castleArmour=0;playerWizardRangeBonus=0;waveCount=0;waveTimer=0;readingStreak=0;spellCharge=100;levelCorrect=0;levelWrong=0;castleVisualLevel=0;applyCastleVisual();document.getElementById('campaign-modal').classList.add('hidden');document.getElementById('levelName').textContent=L.name;document.getElementById('missionRole').textContent=L.role==='defend'?'🛡 DEFEND':'⛩ ATTACK';document.getElementById('objectiveText').textContent=L.role==='defend'?'Protect Hana Palace':'Destroy the Yokai Palace';document.getElementById('waveGoal').textContent=L.waves;updateHUD();triggerKnightWave();startMusic();}
+function loadLevel(index){currentLevelIndex=index;const L=CAMPAIGN_LEVELS[index];gameActive=true;clearEntities();clearStructures();pathNodes=L.path.map(([x,z])=>({x,z}));playerBasePos=pathNodes[0];enemyBasePos=pathNodes[pathNodes.length-1];wizardSlots=slotsForLevel(L).filter(s=>distanceToPath(s.x,s.z)>2.3);scene.remove(pathMeshGroup);pathMeshGroup=buildPathMesh();scene.add(pathMeshGroup);blueCastle.position.set(playerBasePos.x-3,0,playerBasePos.z);redCastle.position.set(enemyBasePos.x+3,0,enemyBasePos.z);ground.material.color.setHex(L.theme);refreshSlotMeshes();
+const defending=L.role==='defend';document.body.classList.toggle('defend-mode',defending);redCastle.visible=!defending;makeSacredTreePairs();playerCastleMaxHp=120;enemyCastleMaxHp=160;playerHp=120;enemyHp=160;gold=85;goldIncome=0;castleArmour=0;playerWizardRangeBonus=0;waveCount=0;waveTimer=0;readingStreak=0;spellCharge=100;levelCorrect=0;levelWrong=0;castleVisualLevel=0;applyCastleVisual();document.getElementById('campaign-modal').classList.add('hidden');document.getElementById('levelName').textContent=L.name;document.getElementById('missionRole').textContent=L.role==='defend'?'🛡 DEFEND':'⛩ ATTACK';document.getElementById('objectiveText').textContent=L.role==='defend'?'Protect Hana Palace':'Destroy the Yokai Palace';document.getElementById('waveGoal').textContent=L.waves;updateHUD();triggerKnightWave();startMusic();}
 function renderCampaign(){const grid=document.getElementById('level-grid');grid.innerHTML='';CAMPAIGN_LEVELS.forEach((L,i)=>{const b=document.createElement('button');const unlocked=i<campaignSave.unlocked;b.className='level-card'+(unlocked?'':' locked');const stars=campaignSave.stars[i]||0;b.innerHTML=`<strong>${L.name}</strong><span>${'⭐'.repeat(stars)}${'☆'.repeat(3-stars)}</span><small>${L.role==='defend'?'🛡 Defend':'⛩ Attack'} · ${L.waves} waves · ${bossDisplayName(L.bossType)}</small>`;b.disabled=!unlocked;b.onclick=()=>loadLevel(i);grid.appendChild(b);});document.getElementById('starsTotal').textContent=Object.values(campaignSave.stars).reduce((a,b)=>a+b,0);}
 function finishLevel(won){if(!gameActive)return;gameActive=false;const L=CAMPAIGN_LEVELS[currentLevelIndex];let stars=0;if(won){stars=1+(playerHp>=60?1:0)+(levelWrong===0?1:0);campaignSave.stars[currentLevelIndex]=Math.max(campaignSave.stars[currentLevelIndex]||0,stars);campaignSave.unlocked=Math.max(campaignSave.unlocked,Math.min(CAMPAIGN_LEVELS.length,currentLevelIndex+2));localStorage.setItem('yokaiSiegeCampaignV5',JSON.stringify(campaignSave));victoryMusic();}document.getElementById('result-title').textContent=won?'🏆 Battle Won!':'🏰 Castle Fallen';document.getElementById('result-stars').textContent=won?'⭐'.repeat(stars)+'☆'.repeat(3-stars):'Try again';document.getElementById('result-summary').textContent=`${L.name} · ${levelCorrect} correct answers · Castle ${playerHp}/${playerCastleMaxHp}`;document.getElementById('btn-next-level').style.display=won&&currentLevelIndex<CAMPAIGN_LEVELS.length-1?'flex':'none';document.getElementById('result-modal').classList.remove('hidden');
 }
@@ -1166,6 +1181,16 @@ document.getElementById('btn-torii').onclick=()=>{mode=mode==='BUILD_TORII'?'PLA
 document.getElementById('btn-rope').onclick=()=>{mode=mode==='BUILD_ROPE'?'PLAY':'BUILD_ROPE';showBattleText('Click a path crossing between sacred cherry trees.');};
 document.getElementById('btn-next-level').onclick=()=>{document.getElementById('result-modal').classList.add('hidden');loadLevel(Math.min(currentLevelIndex+1,CAMPAIGN_LEVELS.length-1));};
 document.getElementById('btn-level-select').onclick=()=>{document.getElementById('result-modal').classList.add('hidden');document.getElementById('campaign-modal').classList.remove('hidden');renderCampaign();};
+// V5.1 controls, tooltips and economy tuning
+const speedButton=document.getElementById('btn-speed');
+const pauseButton=document.getElementById('btn-pause');
+speedButton.onclick=()=>{timeScale=timeScale===1?2:1;speedButton.textContent=timeScale===2?'1×':'2×';speedButton.classList.toggle('active',timeScale===2);showBattleText(`Battle speed: ${timeScale}×`);};
+pauseButton.onclick=()=>{paused=!paused;pauseButton.textContent=paused?'▶':'Ⅱ';pauseButton.classList.toggle('active',paused);showBattleText(paused?'Battle paused.':'Battle resumed.');};
+const goldSlider=document.getElementById('gold-rate'),goldLabel=document.getElementById('gold-rate-value');
+goldSlider.value=String(Math.round(goldRewardRate*100));goldLabel.textContent=goldSlider.value+'%';
+goldSlider.addEventListener('input',()=>{goldRewardRate=Number(goldSlider.value)/100;goldLabel.textContent=goldSlider.value+'%';localStorage.setItem('yokaiGoldRewardRate',goldSlider.value);});
+const buildTooltip=document.getElementById('build-tooltip');
+document.querySelectorAll('#build-panel button[data-tip]').forEach(b=>{b.addEventListener('mouseenter',()=>buildTooltip.textContent=b.dataset.tip);b.addEventListener('focus',()=>buildTooltip.textContent=b.dataset.tip);});
 renderCampaign();
 
 // --- 10. ANIMATION & GAME LOOP ---
@@ -1173,12 +1198,13 @@ function animate() {
     requestAnimationFrame(animate);
 
     let now = Date.now();
-    let dt = now - lastTime;
+    let rawDt = Math.min(100, now - lastTime);
     lastTime = now;
+    let dt = paused ? 0 : rawDt * timeScale;
 
     if(gameActive){
       spellCharge=Math.min(maxSpellCharge,spellCharge+(dt/1000)*4);
-      incomeClock+=dt/1000;if(goldIncome>0&&incomeClock>=5){incomeClock=0;gold+=goldIncome;updateHUD();}
+      incomeClock+=dt/1000;if(goldIncome>0&&incomeClock>=5){incomeClock=0;gold+=Math.max(1,Math.round(goldIncome*goldRewardRate));updateHUD();}
       waveTimer += dt / 1000;
       const goal=CAMPAIGN_LEVELS[currentLevelIndex].waves;
       if (waveTimer >= waveInterval && waveCount < goal) { waveTimer = 0; triggerKnightWave(); }
@@ -1192,7 +1218,7 @@ function animate() {
         k.update(dt);
         if (k.hp <= 0) {
             if (k.team === 'enemy') {
-                let reward = k.isMega ? 24 : (k.unitType==='disruptor'?10:6);
+                let reward = Math.max(1,Math.round((k.isMega ? 24 : (k.unitType==='disruptor'?10:6))*goldRewardRate));
                 gold += reward;
                 updateHUD();
                 createFloatingGoldText(k.mesh.position.x, 2.5, k.mesh.position.z, `+${reward}g`);

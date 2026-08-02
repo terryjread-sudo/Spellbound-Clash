@@ -1,9 +1,17 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Yōkai Siege: Legends of Japan</title><link rel="stylesheet" href="style.css"></head><body>
 <div id="canvas-container"></div><button id="castle-hover-upgrade" title="Upgrade Hana Palace">⬆</button>
-<div id="ui-layer">
+<div id="ui-layer"><div id="version-badge">V5.1</div>
 <header id="hud"><section class="palace blue-team"><b>🏯 HANA PALACE</b><div class="hp-bar-bg"><div id="playerHpFill" class="hp-bar-fill blue-fill"></div></div><span id="playerHp">120</span></section><section class="centre"><div class="mission"><strong id="missionRole">🛡 DEFEND</strong><span id="levelName">Sakura Gate</span><span>Wave <b id="wave">1</b>/<b id="waveGoal">5</b></span></div><div class="resources"><span>🪙 <b id="gold">85</b></span><span>📖 <b id="spellCharge">100</b></span><div class="spell-meter-bg"><div id="spellChargeFill"></div></div><span>🔥 ×<b id="readingStreak">0</b></span><span>⭐ <b id="starsTotal">0</b></span></div></section><section class="palace red-team"><span id="enemyHp">160</span><div class="hp-bar-bg"><div id="enemyHpFill" class="hp-bar-fill red-fill"></div></div><b>YŌKAI PALACE 🏯</b></section></header>
 <div id="objective"><b id="objectiveText">Protect Hana Palace</b><span id="info-banner">Reading magic and folklore units decide the battle.</span></div>
-<aside id="build-panel"><h3>BUILD</h3><button id="btn-knight">⚔️ Onna-Musha <em>80</em></button><button id="btn-wizard">🔮 Onmyōji <em>50</em></button><button id="btn-sohei">🥁 Sōhei <em>70</em></button><button id="btn-disruptor">🥷 Shinobi <em>55</em></button><button id="btn-torii">⛩ Torii Gate <em>40</em></button><button id="btn-rope">〰 Shimenawa <em>50</em></button></aside>
+<aside id="build-panel"><h3>BUILD</h3>
+<button id="btn-knight" data-tip="Heavy Onna-Musha with a naginata. Strong, durable frontline attacker.">⚔️ Onna-Musha <em>80</em></button>
+<button id="btn-wizard" data-tip="Place an Onmyōji beside the road. Fires ranged spirit magic at enemies within range.">🔮 Onmyōji <em>50</em></button>
+<button id="btn-sohei" data-tip="Place a warrior monk beside the road. Taiko drums increase nearby friendly movement speed.">🥁 Sōhei <em>70</em></button>
+<button id="btn-disruptor" data-tip="A path-following Shinobi. Disables the first eligible enemy tower it approaches.">🥷 Shinobi <em>55</em></button>
+<button id="btn-torii" data-tip="Place on the road for 30 seconds. Friendly units passing through gain a temporary speed boost.">⛩ Torii Gate <em>40</em></button>
+<button id="btn-rope" data-tip="Place across a road near paired trees. Stops the first enemy for 3 seconds and catches others briefly.">〰 Shimenawa <em>50</em></button>
+<div id="economy-panel"><label for="gold-rate">Gold rewards <b id="gold-rate-value">75%</b></label><input id="gold-rate" type="range" min="25" max="200" step="5" value="75"><small>Adjusts battle, reading and treasury gold.</small></div>
+<div id="build-tooltip" aria-live="polite">Hover over a build option to see what it does.</div></aside>
 <nav id="controls"><button id="btn-spellbook" class="gold">📖 Reading Spell</button><button id="btn-heal" class="heal">✨ Healing Light 45</button><button id="btn-speed">2×</button><button id="btn-pause">Ⅱ</button></nav>
 </div>
 <div id="spellbook-modal" class="modal hidden"><div class="modal-content"><h2>📖 Shrine Reading Challenge</h2><div id="spell-reward"></div><p id="spell-question"></p><div id="spell-options"></div><p id="spell-feedback"></p></div></div>
