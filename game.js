@@ -1,4 +1,4 @@
-// --- Yokai Siege: Legends of Japan V5.1 ---
+// --- Yokai Siege: Legends of Japan V5.2 ---
 
 // --- 1. GAME STATE ---
 let gold = 80;
@@ -25,12 +25,16 @@ let castleArmour = 0;
 let currentQuestion = null;
 let timeScale = 1;
 let paused = false;
-let goldRewardRate = Number(localStorage.getItem('yokaiGoldRewardRate') || 75) / 100;
+let goldRewardRate = Number(localStorage.getItem('yokaiGoldRewardRate') || 100) / 100;
+let kotobaLevel = 1; // 3 Bushi at L1, +1 per upgrade, maximum 5
+let readySoundPlayed = false;
+let muteAudio = localStorage.getItem('yokaiMuteAudio') === '1';
 
 // Auto Wave System Variables
 let waveCount = 0;
 let waveTimer = 0;
-let waveInterval = 6.0;
+const WAVE_COUNTDOWN_SECONDS = 10;
+let waveInterval = WAVE_COUNTDOWN_SECONDS;
 
 const CAMPAIGN_LEVELS = [
  {name:'1. Sakura Gate',role:'defend',theme:0x78b86f,waves:5,difficulty:1,bossType:'gashadokuro',path:[[-52,8],[-30,8],[-30,-12],[0,-12],[0,8],[52,8]],slots:[[-42,15],[-34,1],[-22,1],[-15,-19],[-4,-5],[18,1]]},
@@ -77,17 +81,22 @@ const projectiles = [];
 const slotMeshes = [];
 const floatingTexts = [];
 
-// Reading challenges aimed at age 8. Each answer casts a combat spell.
+// Very basic Japanese reading challenges for an eight-year-old.
+// Every correct answer activates Kotoba Rally and summons Bushi.
 const questions = [
-    { q: "Which word means the same as QUICK?", opts: ["Fast", "Late", "Quiet", "Heavy"], a: "Fast", difficulty: 1, effect: "freeze", label: "❄️ Frost Wave" },
-    { q: "Which spelling is correct?", opts: ["Because", "Becaus", "Beacause", "Becose"], a: "Because", difficulty: 1, effect: "reinforce", label: "⚔️ Call Reinforcements" },
-    { q: "What is the opposite of ANCIENT?", opts: ["Old", "Modern", "Broken", "Huge"], a: "Modern", difficulty: 2, effect: "meteor", label: "☄️ Meteor Strike" },
-    { q: "Choose the adjective: The fierce dragon roared.", opts: ["dragon", "roared", "fierce", "the"], a: "fierce", difficulty: 2, effect: "freeze", label: "❄️ Frost Wave" },
-    { q: "Which word has a silent letter?", opts: ["Knight", "Table", "River", "Music"], a: "Knight", difficulty: 2, effect: "reinforce", label: "⚔️ Call Reinforcements" },
-    { q: "Which sentence uses their correctly?", opts: ["Their going home.", "The knights raised their shields.", "Put it over their.", "Their is a dragon."], a: "The knights raised their shields.", difficulty: 3, effect: "income", label: "💰 Wisdom of Wealth" },
-    { q: "Which word contains a suffix meaning ‘full of’?", opts: ["Careful", "Replay", "Unkind", "Preview"], a: "Careful", difficulty: 3, effect: "meteor", label: "☄️ Meteor Strike" }
+    { q: "What does こんにちは (konnichiwa) mean?", opts: ["Hello", "Goodbye", "Thank you", "Water"], a: "Hello", difficulty: 1 },
+    { q: "Which Japanese word means THANK YOU?", opts: ["Arigatō", "Sayonara", "Neko", "Aka"], a: "Arigatō", difficulty: 1 },
+    { q: "What does ねこ (neko) mean?", opts: ["Cat", "Dog", "Bird", "Fish"], a: "Cat", difficulty: 1 },
+    { q: "Which number is いち (ichi)?", opts: ["One", "Two", "Three", "Four"], a: "One", difficulty: 1 },
+    { q: "What colour is あか (aka)?", opts: ["Red", "Blue", "White", "Black"], a: "Red", difficulty: 1 },
+    { q: "What does みず (mizu) mean?", opts: ["Water", "Fire", "Mountain", "Moon"], a: "Water", difficulty: 1 },
+    { q: "Which word means DOG?", opts: ["Inu", "Neko", "Tori", "Sakana"], a: "Inu", difficulty: 1 },
+    { q: "What does おはよう (ohayō) mean?", opts: ["Good morning", "Good night", "Please", "Yes"], a: "Good morning", difficulty: 2 },
+    { q: "Which number is さん (san)?", opts: ["Three", "Five", "Seven", "Ten"], a: "Three", difficulty: 2 },
+    { q: "What does しろ (shiro) mean?", opts: ["White", "Yellow", "Green", "Purple"], a: "White", difficulty: 2 },
+    { q: "Which Japanese word means MOUNTAIN?", opts: ["Yama", "Kawa", "Umi", "Sora"], a: "Yama", difficulty: 2 },
+    { q: "What does さようなら (sayōnara) mean?", opts: ["Goodbye", "Welcome", "Excuse me", "Delicious"], a: "Goodbye", difficulty: 2 }
 ];
-
 
 function distanceToPath(x, z) {
     let best = Infinity;
@@ -109,7 +118,7 @@ function showBattleText(text) {
     const banner = document.getElementById('info-banner');
     banner.textContent = text;
     clearTimeout(showBattleText.timer);
-    showBattleText.timer = setTimeout(() => banner.textContent = '📖 Charge the spellbook, answer correctly, and cast battle magic!', 2600);
+    showBattleText.timer = setTimeout(() => banner.textContent = '⛩ Charge Kotoba Rally, answer basic Japanese, and summon Bushi!', 2600);
 }
 
 // --- 3. THREE.JS SCENE SETUP ---
@@ -349,6 +358,7 @@ function refreshSlotMeshes() {
     slotMeshes.length = 0;
 
     wizardSlots.forEach(s => {
+        if (gameActive && CAMPAIGN_LEVELS[currentLevelIndex].role === 'defend' && s.team === 'enemy') return;
         const isPlayerSlot = s.team === 'player' || s.x < 0;
         const mat = isPlayerSlot ? blueSlotMat : redSlotMat;
 
@@ -778,6 +788,7 @@ class KnightEntity {
                 if (this.team === 'player') enemyHp = Math.max(0, enemyHp - dmgAmt);
                 else playerHp = Math.max(0, playerHp - Math.max(1, dmgAmt - castleArmour));
                 playSound('castle'); shakeAmount=Math.max(shakeAmount,this.isMega?1.2:.45); burstParticles((this.team==='player'?redCastle:blueCastle).position,0xf59e0b,this.isMega?28:12);
+                this.reachedBase = true; // escaped units never award kill gold
                 this.hp = 0;
             }
         }
@@ -865,7 +876,7 @@ function triggerKnightWave() {
 
 setInterval(() => {
     if(!gameActive)return; const level=CAMPAIGN_LEVELS[currentLevelIndex];
-    if (Math.random() < 0.12 + level.difficulty*.05) {
+    if (level.role !== 'defend' && Math.random() < 0.12 + level.difficulty*.05) {
         let availableSlots = wizardSlots.filter(s => (s.team === 'enemy' || s.x > 0) && !wizards.find(w => w.homeX === s.x && w.homeZ === s.z));
         if (availableSlots.length > 0) {
             let slot = availableSlots[Math.floor(Math.random() * availableSlots.length)];
@@ -891,11 +902,21 @@ function updateHUD() {
     document.getElementById('playerHpFill').style.width = (playerHp/playerCastleMaxHp*100) + '%';
     document.getElementById('enemyHpFill').style.width = (enemyHp/enemyCastleMaxHp*100) + '%';
     const waveEl = document.getElementById('wave');
-    if (waveEl) waveEl.innerText = Math.max(1, waveCount);
+    if (waveEl) waveEl.innerText = waveCount;
     const charge=document.getElementById('spellCharge'); if(charge) charge.innerText=Math.floor(spellCharge);
     const fill=document.getElementById('spellChargeFill'); if(fill) fill.style.width=(spellCharge/maxSpellCharge*100)+'%';
+    document.getElementById('btn-spellbook').style.setProperty('--charge',(spellCharge/maxSpellCharge*100)+'%');
     const streak=document.getElementById('readingStreak'); if(streak) streak.innerText=readingStreak;
-    document.getElementById('btn-spellbook').disabled = spellCharge < maxSpellCharge;
+    const rallyBtn=document.getElementById('btn-spellbook');
+    rallyBtn.disabled = spellCharge < maxSpellCharge;
+    rallyBtn.classList.toggle('ready', spellCharge >= maxSpellCharge);
+    if (spellCharge >= maxSpellCharge && !readySoundPlayed) { readySoundPlayed=true; playSound('ready'); }
+    if (spellCharge < maxSpellCharge) readySoundPlayed=false;
+    const nextWave=document.getElementById('wave-countdown');
+    if(nextWave){const left=Math.max(0,Math.ceil(WAVE_COUNTDOWN_SECONDS-waveTimer));nextWave.textContent=waveCount>=CAMPAIGN_LEVELS[currentLevelIndex].waves?'FINAL WAVE':`Next ${left}s`;nextWave.classList.toggle('urgent',left<=3&&waveCount<CAMPAIGN_LEVELS[currentLevelIndex].waves);}
+    document.body.classList.toggle('low-health', playerHp/playerCastleMaxHp <= .3);
+    document.querySelectorAll('#build-panel button[data-cost]').forEach(b=>b.classList.toggle('cannot-afford',gold<Number(b.dataset.cost)));
+    const rallyLevel=document.getElementById('rally-level'); if(rallyLevel) rallyLevel.textContent=`Lv${kotobaLevel} · ${2+kotobaLevel} Bushi`;
     const stars=document.getElementById('starsTotal');if(stars)stars.textContent=Object.values(campaignSave.stars).reduce((a,b)=>a+b,0);
 }
 
@@ -917,21 +938,28 @@ document.getElementById('btn-wizard').onclick = () => {
 };
 
 function castReadingSpell(qObj) {
-    const enemies=knights.filter(k=>k.team==='enemy');
-    if(qObj.effect==='freeze') enemies.forEach(k=>k.slowTimer=Math.max(k.slowTimer,6));
-    if(qObj.effect==='reinforce') for(let i=0;i<3;i++) setTimeout(()=>knights.push(new KnightEntity('player',false)),i*250);
-    if(qObj.effect==='meteor') enemies.forEach(k=>{k.hp-=qObj.difficulty===3?70:45;if(k.isMega)k.updateHealthBar();});
-    if(qObj.effect==='income') { goldIncome += 1; showBattleText('💰 Permanent gold income increased!'); }
-    const reward=Math.max(1,Math.round(10*qObj.difficulty*goldRewardRate)); gold+=reward;
-    if(readingStreak>0 && readingStreak%5===0){ enemies.forEach(k=>k.hp-=60); showBattleText('🔥 Five-answer streak: bonus meteor!'); }
-    createFloatingGoldText(0,8,0,qObj.label+' +'+reward+'g');
+    const count = Math.min(5, 2 + kotobaLevel);
+    for (let i=0; i<count; i++) {
+        setTimeout(() => knights.push(new KnightEntity('player', false, 'knight')), i * 320);
+    }
+    const reward = Math.max(1, Math.round(8 * qObj.difficulty * goldRewardRate));
+    gold += reward;
+    if (readingStreak > 0 && readingStreak % 5 === 0) {
+        setTimeout(() => knights.push(new KnightEntity('player', true, 'onna')), count * 320);
+        showBattleText('🔥 Five-answer streak: an Onna-Musha joins the rally!');
+    } else {
+        showBattleText(`⛩ Kotoba Rally summoned ${count} Bushi!`);
+    }
+    createFloatingGoldText(0, 8, 0, `ことば +${count} Bushi · +${reward}g`);
+    updateHUD();
 }
+
 document.getElementById('btn-spellbook').onclick = () => {
-    if(spellCharge<maxSpellCharge){showBattleText('The spellbook is still recharging.');return;}
+    if(spellCharge<maxSpellCharge){showBattleText('Kotoba Rally is still charging.');return;}
     spellCharge=0; {const pool=questions.filter(q=>q.difficulty<=CAMPAIGN_LEVELS[currentLevelIndex].difficulty);currentQuestion=pool[Math.floor(Math.random()*pool.length)];}; updateHUD();
     const modal=document.getElementById('spellbook-modal');
     document.getElementById('spell-question').innerText=currentQuestion.q;
-    document.getElementById('spell-reward').innerText=`${currentQuestion.label} • Difficulty ${currentQuestion.difficulty}`;
+    document.getElementById('spell-reward').innerText=`Kotoba Rally Lv${kotobaLevel}: summon ${Math.min(5,2+kotobaLevel)} Bushi • Japanese ${currentQuestion.difficulty}`;
     const optsDiv=document.getElementById('spell-options'); optsDiv.innerHTML='';
     currentQuestion.opts.forEach(opt=>{
         const btn=document.createElement('button'); btn.className='word-opt'; btn.innerText=opt;
@@ -959,6 +987,7 @@ function buyCastleUpgrade(cost, action, message){if(gold<cost){showBattleText('N
 document.getElementById('btn-fortify').onclick=()=>buyCastleUpgrade(100,()=>{playerCastleMaxHp+=25;playerHp+=25;},'🏰 Castle maximum health increased!');
 document.getElementById('btn-treasury').onclick=()=>buyCastleUpgrade(120,()=>goldIncome++,'💰 Treasury now earns more gold each second!');
 document.getElementById('btn-arcane').onclick=()=>buyCastleUpgrade(110,()=>{playerWizardRangeBonus+=2;wizards.filter(w=>w.team==='player').forEach(w=>w.range+=2);},'🔮 Every player wizard gained +2 range!');
+document.getElementById('btn-kotoba').onclick=()=>{if(kotobaLevel>=3){showBattleText('Kotoba Rally is already at maximum strength.');return;}buyCastleUpgrade(90+kotobaLevel*30,()=>kotobaLevel++,`⛩ Kotoba Rally upgraded — now summons ${Math.min(5,3+kotobaLevel)} Bushi!`);};
 document.getElementById('btn-armour').onclick=()=>buyCastleUpgrade(90,()=>castleArmour=Math.min(6,castleArmour+2),'🧱 Incoming castle damage reduced!');
 
 document.getElementById('btn-close-upgrade').onclick = () => {
@@ -1124,8 +1153,8 @@ window.addEventListener('click', (e) => {
 
 // --- AUDIO, PARTICLES & CAMPAIGN ---
 let audioCtx=null, musicTimer=null;
-function tone(freq,duration=.08,type='sine',volume=.035,delay=0){try{audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();const o=audioCtx.createOscillator(),v=audioCtx.createGain();o.type=type;o.frequency.value=freq;v.gain.setValueAtTime(volume,audioCtx.currentTime+delay);v.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+delay+duration);o.connect(v);v.connect(audioCtx.destination);o.start(audioCtx.currentTime+delay);o.stop(audioCtx.currentTime+delay+duration);}catch(e){}}
-function playSound(kind){const m={sword:[180,.06,'square'],impact:[110,.07,'triangle'],magic:[620,.14,'sine'],castle:[70,.24,'sawtooth'],disrupt:[240,.3,'square'],heal:[520,.28,'sine']}[kind];if(m)tone(...m);}
+function tone(freq,duration=.08,type='sine',volume=.035,delay=0){if(muteAudio)return;try{audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();const o=audioCtx.createOscillator(),v=audioCtx.createGain();o.type=type;o.frequency.value=freq;v.gain.setValueAtTime(volume,audioCtx.currentTime+delay);v.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+delay+duration);o.connect(v);v.connect(audioCtx.destination);o.start(audioCtx.currentTime+delay);o.stop(audioCtx.currentTime+delay+duration);}catch(e){}}
+function playSound(kind){const m={sword:[180,.06,'square'],impact:[110,.07,'triangle'],magic:[620,.14,'sine'],castle:[70,.24,'sawtooth'],disrupt:[240,.3,'square'],heal:[520,.28,'sine'],ready:[880,.18,'sine']}[kind];if(m)tone(...m);}
 function startMusic(){clearInterval(musicTimer);let i=0;const notes=[196,247,294,247,220,262,330,262];musicTimer=setInterval(()=>{if(gameActive)tone(notes[i++%notes.length],.32,'triangle',.009)},430);}
 function victoryMusic(){[523,659,784,1047].forEach((n,i)=>tone(n,.35,'sine',.045,i*.13));}
 function createTextSprite(text,color='#fff'){const cv=document.createElement('canvas');cv.width=512;cv.height=128;const x=cv.getContext('2d');x.font='900 46px Segoe UI';x.textAlign='center';x.fillStyle=color;x.strokeStyle='#111827';x.lineWidth=8;x.strokeText(text,256,78);x.fillText(text,256,78);return new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),transparent:true,depthTest:false}));}
@@ -1133,8 +1162,8 @@ const particles=[];
 function burstParticles(pos,color,count=10){for(let i=0;i<count;i++){const m=new THREE.Mesh(new THREE.SphereGeometry(.12,5,5),new THREE.MeshBasicMaterial({color}));m.position.copy(pos);m.position.y+=1;scene.add(m);particles.push({mesh:m,v:new THREE.Vector3((Math.random()-.5)*8,Math.random()*7+2,(Math.random()-.5)*8),life:.65});}}
 function clearEntities(){[...knights].forEach(x=>x.destroy());[...wizards].forEach(x=>x.destroy());[...projectiles].forEach(x=>scene.remove(x.mesh));knights.length=wizards.length=projectiles.length=0;}
 function slotsForLevel(level){const left=level.slots.map(([x,z])=>({x,z,team:'player'}));const right=left.map(s=>({x:-s.x,z:s.z,team:'enemy'}));return [...left,...right];}
-function loadLevel(index){currentLevelIndex=index;const L=CAMPAIGN_LEVELS[index];gameActive=true;clearEntities();clearStructures();pathNodes=L.path.map(([x,z])=>({x,z}));playerBasePos=pathNodes[0];enemyBasePos=pathNodes[pathNodes.length-1];wizardSlots=slotsForLevel(L).filter(s=>distanceToPath(s.x,s.z)>2.3);scene.remove(pathMeshGroup);pathMeshGroup=buildPathMesh();scene.add(pathMeshGroup);blueCastle.position.set(playerBasePos.x-3,0,playerBasePos.z);redCastle.position.set(enemyBasePos.x+3,0,enemyBasePos.z);ground.material.color.setHex(L.theme);refreshSlotMeshes();
-const defending=L.role==='defend';document.body.classList.toggle('defend-mode',defending);redCastle.visible=!defending;makeSacredTreePairs();playerCastleMaxHp=120;enemyCastleMaxHp=160;playerHp=120;enemyHp=160;gold=85;goldIncome=0;castleArmour=0;playerWizardRangeBonus=0;waveCount=0;waveTimer=0;readingStreak=0;spellCharge=100;levelCorrect=0;levelWrong=0;castleVisualLevel=0;applyCastleVisual();document.getElementById('campaign-modal').classList.add('hidden');document.getElementById('levelName').textContent=L.name;document.getElementById('missionRole').textContent=L.role==='defend'?'🛡 DEFEND':'⛩ ATTACK';document.getElementById('objectiveText').textContent=L.role==='defend'?'Protect Hana Palace':'Destroy the Yokai Palace';document.getElementById('waveGoal').textContent=L.waves;updateHUD();triggerKnightWave();startMusic();}
+function loadLevel(index){currentLevelIndex=index;const L=CAMPAIGN_LEVELS[index];gameActive=true;clearEntities();clearStructures();pathNodes=L.path.map(([x,z])=>({x,z}));playerBasePos=pathNodes[0];enemyBasePos=pathNodes[pathNodes.length-1];wizardSlots=slotsForLevel(L).filter(s=>distanceToPath(s.x,s.z)>2.3 && (L.role!=='defend' || s.team==='player'));scene.remove(pathMeshGroup);pathMeshGroup=buildPathMesh();scene.add(pathMeshGroup);blueCastle.position.set(playerBasePos.x-3,0,playerBasePos.z);redCastle.position.set(enemyBasePos.x+3,0,enemyBasePos.z);ground.material.color.setHex(L.theme);refreshSlotMeshes();
+const defending=L.role==='defend';document.body.classList.toggle('defend-mode',defending);redCastle.visible=!defending;makeSacredTreePairs();playerCastleMaxHp=120;enemyCastleMaxHp=160;playerHp=120;enemyHp=160;gold=85;goldIncome=0;castleArmour=0;playerWizardRangeBonus=0;waveCount=0;waveTimer=0;readingStreak=0;spellCharge=0;kotobaLevel=1;readySoundPlayed=false;levelCorrect=0;levelWrong=0;castleVisualLevel=0;applyCastleVisual();document.getElementById('campaign-modal').classList.add('hidden');document.getElementById('levelName').textContent=L.name;document.getElementById('missionRole').textContent=L.role==='defend'?'🛡 DEFEND':'⛩ ATTACK';document.getElementById('objectiveText').textContent=L.role==='defend'?'Protect Hana Palace':'Destroy the Yokai Palace';document.getElementById('waveGoal').textContent=L.waves;updateHUD();showBattleText('⏳ First wave arrives in 10 seconds — prepare your defence!');startMusic();}
 function renderCampaign(){const grid=document.getElementById('level-grid');grid.innerHTML='';CAMPAIGN_LEVELS.forEach((L,i)=>{const b=document.createElement('button');const unlocked=i<campaignSave.unlocked;b.className='level-card'+(unlocked?'':' locked');const stars=campaignSave.stars[i]||0;b.innerHTML=`<strong>${L.name}</strong><span>${'⭐'.repeat(stars)}${'☆'.repeat(3-stars)}</span><small>${L.role==='defend'?'🛡 Defend':'⛩ Attack'} · ${L.waves} waves · ${bossDisplayName(L.bossType)}</small>`;b.disabled=!unlocked;b.onclick=()=>loadLevel(i);grid.appendChild(b);});document.getElementById('starsTotal').textContent=Object.values(campaignSave.stars).reduce((a,b)=>a+b,0);}
 function finishLevel(won){if(!gameActive)return;gameActive=false;const L=CAMPAIGN_LEVELS[currentLevelIndex];let stars=0;if(won){stars=1+(playerHp>=60?1:0)+(levelWrong===0?1:0);campaignSave.stars[currentLevelIndex]=Math.max(campaignSave.stars[currentLevelIndex]||0,stars);campaignSave.unlocked=Math.max(campaignSave.unlocked,Math.min(CAMPAIGN_LEVELS.length,currentLevelIndex+2));localStorage.setItem('yokaiSiegeCampaignV5',JSON.stringify(campaignSave));victoryMusic();}document.getElementById('result-title').textContent=won?'🏆 Battle Won!':'🏰 Castle Fallen';document.getElementById('result-stars').textContent=won?'⭐'.repeat(stars)+'☆'.repeat(3-stars):'Try again';document.getElementById('result-summary').textContent=`${L.name} · ${levelCorrect} correct answers · Castle ${playerHp}/${playerCastleMaxHp}`;document.getElementById('btn-next-level').style.display=won&&currentLevelIndex<CAMPAIGN_LEVELS.length-1?'flex':'none';document.getElementById('result-modal').classList.remove('hidden');
 }
@@ -1143,11 +1172,11 @@ function finishLevel(won){if(!gameActive)return;gameActive=false;const L=CAMPAIG
 let structures=[], sacredTrees=[], castleVisualLevel=0;
 function bossDisplayName(t){return t==='gashadokuro'?'Gashadokuro':t==='namazu'?'Namazu':'Yamata no Orochi';}
 function clearStructures(){structures.forEach(s=>{if(s.mesh)scene.remove(s.mesh);if(s.a)scene.remove(s.a);if(s.b)scene.remove(s.b)});structures=[];sacredTrees.forEach(t=>scene.remove(t));sacredTrees=[];}
-function makeToriiMesh(){const q=new THREE.Group(),red=mat(0xd83232,.65),black=mat(0x231815,.8);q.add(mesh(new THREE.BoxGeometry(.45,4,.45),red,-1.4,2,0),mesh(new THREE.BoxGeometry(.45,4,.45),red,1.4,2,0));q.add(mesh(new THREE.BoxGeometry(4,.38,.5),red,0,4,0),mesh(new THREE.BoxGeometry(3.3,.28,.42),black,0,3.45,0));return q;}
+function makeToriiMesh(team='player'){const q=new THREE.Group(),teamMat=mat(team==='player'?0x167bb6:0xba2c32,.55,.25),black=mat(0x231815,.8);q.add(mesh(new THREE.BoxGeometry(.45,4,.45),teamMat,-1.4,2,0),mesh(new THREE.BoxGeometry(.45,4,.45),teamMat,1.4,2,0));q.add(mesh(new THREE.BoxGeometry(4,.38,.5),teamMat,0,4,0),mesh(new THREE.BoxGeometry(3.3,.28,.42),black,0,3.45,0));return q;}
 function makeTree(x,z){const t=new THREE.Group();t.add(mesh(new THREE.CylinderGeometry(.22,.32,2.6,8),mat(0x684126,.95),0,1.3,0));for(let i=0;i<5;i++)t.add(mesh(new THREE.SphereGeometry(.65,8,6),mat(0xf59bb5,.8),Math.sin(i*1.4)*.7,2.7+Math.cos(i)*.3,Math.cos(i*1.4)*.7));t.position.set(x,0,z);scene.add(t);sacredTrees.push(t);return t;}
 function makeSacredTreePairs(){for(let i=1;i<pathNodes.length-1;i+=3){const a=pathNodes[i-1],b=pathNodes[i],dx=b.x-a.x,dz=b.z-a.z,l=Math.hypot(dx,dz)||1,nx=-dz/l,nz=dx/l;makeTree(b.x+nx*4,b.z+nz*4);makeTree(b.x-nx*4,b.z-nz*4);}}
 function nearestPathPoint(x,z){let best={x:pathNodes[0].x,z:pathNodes[0].z,d:1e9};for(let i=0;i<pathNodes.length-1;i++){const a=pathNodes[i],b=pathNodes[i+1],dx=b.x-a.x,dz=b.z-a.z,l2=dx*dx+dz*dz,t=Math.max(0,Math.min(1,((x-a.x)*dx+(z-a.z)*dz)/l2)),px=a.x+t*dx,pz=a.z+t*dz,d=Math.hypot(x-px,z-pz);if(d<best.d)best={x:px,z:pz,d};}return best;}
-function placeTorii(x,z){const p=nearestPathPoint(x,z);if(p.d>3){showBattleText('Place Torii Gates directly on the road.');return}if(gold<40){showBattleText('A Torii Gate costs 40 gold.');return}gold-=40;const m=makeToriiMesh();m.position.set(p.x,0,p.z);scene.add(m);structures.push({type:'torii',mesh:m,x:p.x,z:p.z,life:30});mode='PLAY';updateHUD();}
+function placeTorii(x,z){const p=nearestPathPoint(x,z);if(p.d>3){showBattleText('Place Torii Gates directly on the road.');return}if(gold<40){showBattleText('A Torii Gate costs 40 gold.');return}gold-=40;const m=makeToriiMesh('player');m.position.set(p.x,0,p.z);scene.add(m);structures.push({type:'torii',mesh:m,x:p.x,z:p.z,life:30});mode='PLAY';updateHUD();}
 function placeRope(x,z){const p=nearestPathPoint(x,z);if(p.d>3){showBattleText('Stretch the shimenawa across a road near paired trees.');return}if(gold<50){showBattleText('Shimenawa costs 50 gold.');return}gold-=50;const rope=mesh(new THREE.TorusGeometry(2.8,.08,6,24,Math.PI),mat(0xe7d5a0,.9),p.x,.8,p.z);rope.rotation.x=Math.PI/2;scene.add(rope);structures.push({type:'rope',mesh:rope,x:p.x,z:p.z,armed:true,active:0});mode='PLAY';updateHUD();}
 function updateStructures(dt){for(let i=structures.length-1;i>=0;i--){const s=structures[i];if(s.type==='torii'){s.life-=dt/1000;s.mesh.rotation.y=Math.sin(performance.now()*.001)*.03;knights.filter(k=>k.team==='player'&&Math.hypot(k.mesh.position.x-s.x,k.mesh.position.z-s.z)<2.4).forEach(k=>k.buffTimer=Math.max(k.buffTimer||0,5));if(s.life<=0){scene.remove(s.mesh);structures.splice(i,1)}}else{if(s.active>0)s.active-=dt/1000;const target=knights.find(k=>k.team==='enemy'&&Math.hypot(k.mesh.position.x-s.x,k.mesh.position.z-s.z)<2.5);if(target&&(s.armed||s.active>0)){target.stunTimer=Math.max(target.stunTimer||0,3);if(s.armed){s.armed=false;s.active=5;burstParticles(s.mesh.position,0xfff1b8,18);}}}}
 }
@@ -1175,7 +1204,7 @@ class SoheiEntity extends WizardEntity{constructor(x,z,team){super(x,z,team);sce
 function makeBossMesh(type){const g=new THREE.Group();if(type==='gashadokuro'){const bone=mat(0xe8dfc7,.85);g.add(mesh(new THREE.SphereGeometry(1.3,12,10),bone,0,5.2,0),mesh(new THREE.CylinderGeometry(.7,.9,4,8),bone,0,2.8,0));for(let i=-1;i<=1;i+=2){g.add(mesh(new THREE.CylinderGeometry(.25,.3,4,8),bone,i*.9,2,0));g.add(mesh(new THREE.CylinderGeometry(.2,.25,4.5,8),bone,i*1.35,3.3,0));}}else if(type==='namazu'){g.add(mesh(new THREE.SphereGeometry(2.1,16,10),mat(0x334b55,.75),0,1.8,0));g.scale.z=1.8;g.add(mesh(new THREE.ConeGeometry(.7,2,8),mat(0x526c75,.8),0,2.2,-3));}else{for(let i=0;i<8;i++){const a=(i-3.5)*.28;const neck=mesh(new THREE.CylinderGeometry(.28,.4,3.3,8),mat(0x2f7d4b,.65),Math.sin(a)*2,2.5,Math.cos(a)*1.2);neck.rotation.z=a;g.add(neck);g.add(mesh(new THREE.SphereGeometry(.62,10,8),mat([0xb33a2d,0x5f9e47,0x5a8cc8,0x7fcce0][i%4],.55),Math.sin(a)*3,4,Math.cos(a)*1.8));}g.add(mesh(new THREE.SphereGeometry(1.4,12,10),mat(0x356d3f,.65),0,1.3,0));}return g;}
 class BossEntity extends KnightEntity{constructor(team,type){super(team,true,'boss');scene.remove(this.mesh);this.bossType=type;this.hp=type==='orochi'?520:380;this.maxHp=this.hp;this.speed=type==='gashadokuro'?1.35:type==='namazu'?1.7:1.5;this.mesh=makeBossMesh(type);this.mesh.position.copy(pathNodes[this.pathIdx]);scene.add(this.mesh);const sm=new THREE.SpriteMaterial({map:createHealthBarTexture(this.hp,this.maxHp),transparent:true});this.hpSprite=new THREE.Sprite(sm);this.hpSprite.position.set(0,6.5,0);this.hpSprite.scale.set(5,.7,1);this.mesh.add(this.hpSprite);this.abilityClock=0;}update(dt){this.abilityClock+=dt/1000;if(this.bossType==='namazu'&&this.abilityClock>5){this.abilityClock=0;wizards.filter(w=>Math.hypot(w.mesh.position.x-this.mesh.position.x,w.mesh.position.z-this.mesh.position.z)<12).forEach(w=>w.putToSleep(3));shakeAmount=1.5;showBattleText('🌊 Namazu shakes the earth — nearby towers are stunned!');}if(this.bossType==='gashadokuro'){wizards.filter(w=>w.state==='ACTIVE'&&Math.hypot(w.mesh.position.x-this.mesh.position.x,w.mesh.position.z-this.mesh.position.z)<2.8).forEach(w=>w.putToSleep(6));}super.update(dt);}}
 function applyCastleVisual(){[blueCastle,redCastle].forEach((c,ci)=>{c.scale.setScalar(1+castleVisualLevel*.08);c.traverse(o=>{if(o.material&&o.material.color&&castleVisualLevel>0&&ci===0)o.material.emissive&&o.material.emissive.setHex(castleVisualLevel>2?0x402000:0x101010)});});}
-['btn-fortify','btn-armour','btn-treasury','btn-arcane'].forEach(id=>document.getElementById(id).addEventListener('click',()=>{castleVisualLevel=Math.min(4,castleVisualLevel+1);applyCastleVisual();}));
+['btn-fortify','btn-armour','btn-treasury','btn-arcane','btn-kotoba'].forEach(id=>document.getElementById(id).addEventListener('click',()=>{castleVisualLevel=Math.min(4,castleVisualLevel+1);applyCastleVisual();}));
 document.getElementById('btn-sohei').onclick=()=>{mode=mode==='BUILD_SOHEI'?'PLAY':'BUILD_SOHEI';showBattleText(mode==='BUILD_SOHEI'?'Choose a tower circle for your Sōhei.':'Placement cancelled.');};
 document.getElementById('btn-torii').onclick=()=>{mode=mode==='BUILD_TORII'?'PLAY':'BUILD_TORII';showBattleText('Click directly on the path to place a 30-second Torii Gate.');};
 document.getElementById('btn-rope').onclick=()=>{mode=mode==='BUILD_ROPE'?'PLAY':'BUILD_ROPE';showBattleText('Click a path crossing between sacred cherry trees.');};
@@ -1191,6 +1220,14 @@ goldSlider.value=String(Math.round(goldRewardRate*100));goldLabel.textContent=go
 goldSlider.addEventListener('input',()=>{goldRewardRate=Number(goldSlider.value)/100;goldLabel.textContent=goldSlider.value+'%';localStorage.setItem('yokaiGoldRewardRate',goldSlider.value);});
 const buildTooltip=document.getElementById('build-tooltip');
 document.querySelectorAll('#build-panel button[data-tip]').forEach(b=>{b.addEventListener('mouseenter',()=>buildTooltip.textContent=b.dataset.tip);b.addEventListener('focus',()=>buildTooltip.textContent=b.dataset.tip);});
+
+// V5.2 quality-of-life improvements
+window.addEventListener('keydown',e=>{if(e.key==='Escape'&&mode!=='PLAY'){mode='PLAY';showBattleText('Placement cancelled.');}});
+window.addEventListener('contextmenu',e=>{if(mode!=='PLAY'){e.preventDefault();mode='PLAY';showBattleText('Placement cancelled.');}});
+const muteButton=document.getElementById('btn-mute');
+muteButton.textContent=muteAudio?'🔇':'🔊';
+muteButton.onclick=()=>{muteAudio=!muteAudio;localStorage.setItem('yokaiMuteAudio',muteAudio?'1':'0');muteButton.textContent=muteAudio?'🔇':'🔊';showBattleText(muteAudio?'Sound muted.':'Sound enabled.');};
+
 renderCampaign();
 
 // --- 10. ANIMATION & GAME LOOP ---
@@ -1207,7 +1244,7 @@ function animate() {
       incomeClock+=dt/1000;if(goldIncome>0&&incomeClock>=5){incomeClock=0;gold+=Math.max(1,Math.round(goldIncome*goldRewardRate));updateHUD();}
       waveTimer += dt / 1000;
       const goal=CAMPAIGN_LEVELS[currentLevelIndex].waves;
-      if (waveTimer >= waveInterval && waveCount < goal) { waveTimer = 0; triggerKnightWave(); }
+      if (waveTimer >= WAVE_COUNTDOWN_SECONDS && waveCount < goal) { waveTimer = 0; triggerKnightWave(); }
     }
 
     updateStructures(dt);
@@ -1217,8 +1254,8 @@ function animate() {
         let k = knights[i];
         k.update(dt);
         if (k.hp <= 0) {
-            if (k.team === 'enemy') {
-                let reward = Math.max(1,Math.round((k.isMega ? 24 : (k.unitType==='disruptor'?10:6))*goldRewardRate));
+            if (k.team === 'enemy' && !k.reachedBase) {
+                let reward = Math.max(1,Math.round((k.isMega ? 34 : (k.unitType==='disruptor'?15:10))*goldRewardRate));
                 gold += reward;
                 updateHUD();
                 createFloatingGoldText(k.mesh.position.x, 2.5, k.mesh.position.z, `+${reward}g`);

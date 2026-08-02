@@ -1,13 +1,5 @@
-# Yōkai Siege: Legends of Japan — V5.1
+# Yōkai Siege V5.2
 
-V5.1 improves battlefield clarity and interface controls:
-
-- Darker, textured terrain and a strongly outlined road
-- Visible V5.1 badge
-- Descriptions when hovering or focusing each build option
-- Adjustable Gold Rewards slider, saved in the browser
-- Working 1×/2× battle speed button
-- Working pause/resume button
-- Defend missions hide the enemy palace and its health display
+V5.2 adds Kotoba Rally Japanese learning, 10-second wave countdowns, team-coloured Torii Gates, improved kill rewards, defender-only tower slots, and multiple quality-of-life improvements.
 
 Upload `index.html`, `style.css`, `game.js`, and `README.md` to the root of the GitHub Pages repository.
