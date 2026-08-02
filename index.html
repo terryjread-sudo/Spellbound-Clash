@@ -1,130 +1,14 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spellbound Clash 3D</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-
-    <!-- 3D Canvas Container -->
-    <div id="canvas-container"></div>
-    <button id="castle-hover-upgrade" aria-label="Upgrade castle" title="Upgrade castle">⬆️</button>
-
-    <!-- UI Overlay Layer -->
-    <div id="ui-layer">
-
-        <!-- Top HUD -->
-        <div id="hud">
-            <div class="hud-team blue-team">
-                <span>🏰 Blue Castle</span>
-                <div class="hp-bar-bg">
-                    <div id="playerHpFill" class="hp-bar-fill blue-fill" style="width: 100%;"></div>
-                </div>
-                <span id="playerHp">100</span>
-            </div>
-
-            <div class="hud-centre">
-                <div class="hud-wave"><span id="levelName">Campaign</span> · ⚔️ Wave <span id="wave">1</span>/<span id="waveGoal">6</span> · ⭐ <span id="starsTotal">0</span> · 🔥 <span id="readingStreak">0</span></div>
-                <div class="spell-meter" title="The spellbook recharges during battle"><span>📖 <span id="spellCharge">100</span></span><div class="spell-meter-bg"><div id="spellChargeFill" class="spell-meter-fill"></div></div></div>
-                <div class="hud-gold">
-                <span>🪙</span>
-                <span id="gold">80</span>
-            </div></div>
-
-            <div class="hud-team red-team">
-                <span id="enemyHp">100</span>
-                <div class="hp-bar-bg">
-                    <div id="enemyHpFill" class="hp-bar-fill red-fill" style="width: 100%;"></div>
-                </div>
-                <span>🏰 Red Castle</span>
-            </div>
-        </div>
-
-        <div id="info-banner">⚔️ Auto-spawning weak knights! Specialize Wizards into 🔥 Fire / ❄️ Ice, then unlock ⚡ Swift Boots & ✨ Castle Teleport!</div>
-
-        <!-- Bottom Controls -->
-        <div id="controls">
-            <button id="btn-knight" class="btn">🛡️ Spawn Mega Knight (40g)</button>
-            <button id="btn-wizard" class="btn">🧙 Build Wizard (50g)</button>
-            <button id="btn-spellbook" class="btn btn-gold">📖 Cast Reading Spell</button>
-            <button id="btn-disruptor" class="btn btn-purple">💥 Disruptor (55g)</button>
-            <button id="btn-heal" class="btn btn-heal">💚 Select Wizard to Heal (45g)</button>
-        </div>
-
-    </div>
-
-    <!-- Spellbook Quiz Modal -->
-    <div id="spellbook-modal" class="modal hidden">
-        <div class="modal-content">
-            <h2>📖 Spellbook Challenge</h2>
-            <div id="spell-reward" class="spell-reward"></div>
-            <p id="spell-question">Loading question...</p>
-            <div id="spell-options"></div>
-            <p id="spell-feedback" class="spell-feedback"></p>
-        </div>
-    </div>
-
-    <!-- Wizard Upgrade Modal -->
-    <div id="upgrade-modal" class="modal hidden">
-        <div class="modal-content">
-            <h2>🧙 Wizard Upgrade & Mastery</h2>
-            <p>Current Rank: <strong id="wiz-level" style="color: #38bdf8;">L1 (Standard)</strong></p>
-            
-            <div id="upgrade-branch" style="display: flex; flex-direction: column; gap: 10px; margin: 15px 0;">
-                <!-- Level 1 -> 2 Choice -->
-                <button id="btn-upgrade-fire" class="btn" style="background: linear-gradient(135deg, #ea580c, #c2410c);">🔥 Fire Wizard (40g) - High Blast Damage</button>
-                <button id="btn-upgrade-ice" class="btn" style="background: linear-gradient(135deg, #0284c7, #0369a1);">❄️ Ice Wizard (40g) - Freezing Slow Effect</button>
-                
-                <!-- Level 2 -> 3 Mobility Upgrade -->
-                <button id="btn-upgrade-swift" class="btn btn-gold" style="display: none;">⚡ Swift Boots (50g) - Fast Castle Healing Retreat</button>
-                
-                <!-- Level 3 -> 4 Teleport Upgrade -->
-                <button id="btn-upgrade-teleport" class="btn btn-gold" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9); display: none;">✨ Castle Teleport (80g) - Instant Castle Healing</button>
-                
-                <div id="wiz-max-msg" style="display: none; color: #a855f7; font-weight: 800; font-size: 16px;">✨ MAX POWER UNLOCKED!</div>
-            </div>
-            <button id="btn-close-upgrade" class="btn btn-dark" style="margin-top: 5px;">Close</button>
-        </div>
-    </div>
-
-
-    <div id="castle-modal" class="modal hidden">
-        <div class="modal-content">
-            <h2>🏰 Blue Castle Upgrades</h2>
-            <p>Permanent for the current battle.</p>
-            <div class="upgrade-grid">
-                <button id="btn-fortify" class="btn">❤️ Fortify Walls (100g)<small>+25 maximum castle health</small></button>
-                <button id="btn-armour" class="btn btn-dark">🧱 Reinforced Stone (90g)<small>Reduce damage reaching the castle</small></button>
-                <button id="btn-treasury" class="btn btn-gold">💰 Royal Treasury (120g)<small>+1 gold every second</small></button>
-                <button id="btn-arcane" class="btn btn-purple">🔮 Arcane Beacon (110g)<small>+2 range for all player wizards</small></button>
-            </div>
-            <button id="btn-close-castle" class="btn btn-dark modal-close">Close</button>
-        </div>
-    </div>
-
-
-    <div id="campaign-modal" class="modal">
-      <div class="modal-content campaign-panel">
-        <h2>🗺️ Spellbound Campaign</h2>
-        <p>Complete each short battle to unlock the next realm. Stars are saved on this device.</p>
-        <div id="level-grid" class="level-grid"></div>
-      </div>
-    </div>
-    <div id="result-modal" class="modal hidden">
-      <div class="modal-content">
-        <h2 id="result-title">Victory!</h2><div id="result-stars" class="result-stars">⭐⭐⭐</div>
-        <p id="result-summary"></p>
-        <button id="btn-next-level" class="btn btn-gold">Next Battle</button>
-        <button id="btn-level-select" class="btn btn-dark">Campaign Map</button>
-      </div>
-    </div>
-
-    <!-- Three.js Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
-    <!-- 3D Game Engine -->
-    <script src="game.js"></script>
-</body>
-</html>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Yōkai Siege: Legends of Japan</title><link rel="stylesheet" href="style.css"></head><body>
+<div id="canvas-container"></div><button id="castle-hover-upgrade" title="Upgrade Hana Palace">⬆</button>
+<div id="ui-layer">
+<header id="hud"><section class="palace blue-team"><b>🏯 HANA PALACE</b><div class="hp-bar-bg"><div id="playerHpFill" class="hp-bar-fill blue-fill"></div></div><span id="playerHp">120</span></section><section class="centre"><div class="mission"><strong id="missionRole">🛡 DEFEND</strong><span id="levelName">Sakura Gate</span><span>Wave <b id="wave">1</b>/<b id="waveGoal">5</b></span></div><div class="resources"><span>🪙 <b id="gold">85</b></span><span>📖 <b id="spellCharge">100</b></span><div class="spell-meter-bg"><div id="spellChargeFill"></div></div><span>🔥 ×<b id="readingStreak">0</b></span><span>⭐ <b id="starsTotal">0</b></span></div></section><section class="palace red-team"><span id="enemyHp">160</span><div class="hp-bar-bg"><div id="enemyHpFill" class="hp-bar-fill red-fill"></div></div><b>YŌKAI PALACE 🏯</b></section></header>
+<div id="objective"><b id="objectiveText">Protect Hana Palace</b><span id="info-banner">Reading magic and folklore units decide the battle.</span></div>
+<aside id="build-panel"><h3>BUILD</h3><button id="btn-knight">⚔️ Onna-Musha <em>80</em></button><button id="btn-wizard">🔮 Onmyōji <em>50</em></button><button id="btn-sohei">🥁 Sōhei <em>70</em></button><button id="btn-disruptor">🥷 Shinobi <em>55</em></button><button id="btn-torii">⛩ Torii Gate <em>40</em></button><button id="btn-rope">〰 Shimenawa <em>50</em></button></aside>
+<nav id="controls"><button id="btn-spellbook" class="gold">📖 Reading Spell</button><button id="btn-heal" class="heal">✨ Healing Light 45</button><button id="btn-speed">2×</button><button id="btn-pause">Ⅱ</button></nav>
+</div>
+<div id="spellbook-modal" class="modal hidden"><div class="modal-content"><h2>📖 Shrine Reading Challenge</h2><div id="spell-reward"></div><p id="spell-question"></p><div id="spell-options"></div><p id="spell-feedback"></p></div></div>
+<div id="upgrade-modal" class="modal hidden"><div class="modal-content"><h2>🔮 Onmyōji Training</h2><p>Current Rank: <strong id="wiz-level">L1 Onmyōji</strong></p><div class="upgrade-grid"><button id="btn-upgrade-fire">🔥 Kitsune Flame 40</button><button id="btn-upgrade-ice">❄️ Yuki-onna Frost 40</button><button id="btn-upgrade-swift" style="display:none">⚡ Tengu Sandals 50</button><button id="btn-upgrade-teleport" style="display:none">✨ Spirit Step 80</button><div id="wiz-max-msg" style="display:none">MAX MASTERY</div></div><button id="btn-close-upgrade">Close</button></div></div>
+<div id="castle-modal" class="modal hidden"><div class="modal-content"><h2>🏯 Hana Palace Upgrades</h2><p>Each purchase visibly expands and brightens your palace.</p><div class="upgrade-grid"><button id="btn-fortify">❤️ Stone Foundation 100<small>+25 max health</small></button><button id="btn-armour">🧱 White Plaster Walls 90<small>Reduce incoming damage</small></button><button id="btn-treasury">💰 Golden Shachihoko 120<small>Slow passive income</small></button><button id="btn-arcane">🦊 Inari Shrine 110<small>+2 Onmyōji range</small></button></div><button id="btn-close-castle">Close</button></div></div>
+<div id="campaign-modal" class="modal"><div class="modal-content campaign-panel"><h1>⛩ Yōkai Siege</h1><p>Alternate between defending Hana Palace and leading attacks through a folklore campaign.</p><div id="level-grid"></div></div></div>
+<div id="result-modal" class="modal hidden"><div class="modal-content"><h2 id="result-title"></h2><div id="result-stars"></div><p id="result-summary"></p><button id="btn-next-level">Next Battle</button><button id="btn-level-select">Campaign Map</button></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script><script src="game.js"></script></body></html>

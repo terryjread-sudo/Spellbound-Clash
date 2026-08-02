@@ -1,20 +1,15 @@
-# Spellbound Clash V4 — Campaign Edition
+# Yōkai Siege: Legends of Japan — V5
 
-A browser-based 3D tower defence and reading game for age 8.
+A bright Japanese folklore tower-defence and lane-assault campaign for the browser.
 
-## V4 highlights
-- Ten saved campaign battles with larger maps, progressive difficulty, boss waves and 1–3 star ratings.
-- Wizard slots are fixed close to the path; map editing has been removed.
-- Hover over the blue castle to reveal its upgrade icon.
-- Healing Light enters targeting mode: click the one wizard you want to heal or wake.
-- Disruptors stay on the road and sacrifice themselves against the first nearby active enemy wizard.
-- Disrupted wizards show three purple restraint rings, a large status label and a strong magical glow.
-- Passive gold starts at zero. Treasury and difficult reading rewards add modest income paid every five seconds.
-- Procedural Web Audio effects for swords, spells, castle impacts, disruption, healing, background music and victory.
-- Particle impacts and camera shake, especially when Mega Knights hit a castle.
+## V5 highlights
+- Ten alternating **Defend** and **Attack** missions.
+- Japanese castle/pagoda visuals with visible upgrade growth.
+- Bushi infantry, 80-gold Onna-Musha, Onmyōji towers, Shinobi disruptors and Sōhei drum supports.
+- Torii Gates placed on roads for temporary friendly speed buffs.
+- Shimenawa traps placed across roads near paired sacred cherry trees.
+- Final-wave folklore bosses: Gashadokuro, Namazu and Yamata no Orochi.
+- Brighter anime-inspired parchment-and-lacquer interface.
+- Reading spells, saved campaign stars, sound, particles and screen shake remain included.
 
-## Campaign saving
-Progress and stars are stored in the browser with `localStorage`. Clearing site data resets the campaign.
-
-## Deployment
 Upload `index.html`, `style.css`, `game.js` and `README.md` to the root of the GitHub Pages repository.

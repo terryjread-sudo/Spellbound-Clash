@@ -1,10 +1,10 @@
-// --- Spellbound Clash 3D Game Engine ---
+// --- Yokai Siege: Legends of Japan V5 ---
 
 // --- 1. GAME STATE ---
 let gold = 80;
 let playerHp = 100;
 let enemyHp = 100;
-let mode = 'PLAY'; // PLAY, BUILD_WIZARD, TARGET_HEAL
+let mode = 'PLAY'; // PLAY, BUILD_WIZARD, BUILD_SOHEI, BUILD_TORII, BUILD_ROPE, TARGET_HEAL
 let gameActive = false;
 let currentLevelIndex = 0;
 let levelStartHp = 100;
@@ -30,18 +30,18 @@ let waveTimer = 0;
 let waveInterval = 6.0;
 
 const CAMPAIGN_LEVELS = [
- {name:'1. Meadow March', theme:0x2e6f40, waves:5, difficulty:1, path:[[-52,8],[-30,8],[-30,-12],[0,-12],[0,8],[52,8]], slots:[[-42,15],[-34,1],[-22,1],[-15,-19],[-4,-5],[18,1]]},
- {name:'2. Moonlit Bend', theme:0x285046, waves:6, difficulty:1, path:[[-52,-10],[-34,-10],[-34,12],[-10,12],[-10,-5],[22,-5],[22,12],[52,12]], slots:[[-44,-3],[-28,-18],[-27,18],[-15,5],[0,2],[28,5]]},
- {name:'3. Ember Road', theme:0x59412c, waves:6, difficulty:1, path:[[-52,12],[-38,12],[-38,-14],[-15,-14],[-15,8],[15,8],[15,-10],[38,-10],[38,12],[52,12]], slots:[[-45,4],[-31,4],[-24,-20],[-9,-5],[0,15],[23,0]]},
- {name:'4. Frost Pass', theme:0x365b69, waves:7, difficulty:2, path:[[-52,0],[-38,0],[-38,-16],[-12,-16],[-12,16],[12,16],[12,-8],[36,-8],[36,8],[52,8]], slots:[[-45,8],[-31,-8],[-20,-9],[-5,8],[4,22],[20,0]]},
- {name:'5. Forest Spiral', theme:0x244b35, waves:7, difficulty:2, path:[[-52,14],[-30,14],[-30,-14],[30,-14],[30,14],[-12,14],[-12,0],[12,0],[12,8],[52,8]], slots:[[-43,7],[-36,-4],[-20,-20],[-4,-7],[-20,20],[20,7]]},
- {name:'6. Shadow Crossing', theme:0x34304d, waves:8, difficulty:2, path:[[-52,-14],[-28,-14],[-28,14],[-5,14],[-5,-6],[18,-6],[18,14],[38,14],[38,-4],[52,-4]], slots:[[-42,-7],[-34,5],[-21,20],[-12,5],[3,1],[25,7]]},
- {name:'7. Crystal Causeway', theme:0x27516a, waves:8, difficulty:2, path:[[-52,8],[-40,8],[-40,-16],[-20,-16],[-20,16],[5,16],[5,-16],[28,-16],[28,8],[52,8]], slots:[[-46,15],[-33,-8],[-26,8],[-13,-8],[-3,8],[12,-8]]},
- {name:'8. Dragon Run', theme:0x65402d, waves:9, difficulty:3, path:[[-52,0],[-42,0],[-42,16],[-22,16],[-22,-16],[0,-16],[0,16],[22,16],[22,-8],[42,-8],[42,8],[52,8]], slots:[[-47,-7],[-35,8],[-28,-8],[-15,8],[-7,-9],[8,8]]},
- {name:'9. Arcane Labyrinth', theme:0x3d365f, waves:9, difficulty:3, path:[[-52,-12],[-36,-12],[-36,14],[-18,14],[-18,-4],[0,-4],[0,14],[18,14],[18,-14],[38,-14],[38,6],[52,6]], slots:[[-45,-5],[-30,5],[-24,-11],[-12,5],[6,5],[24,-7]]},
- {name:'10. Crown Siege', theme:0x4b3138, waves:10, difficulty:3, boss:true, path:[[-52,10],[-40,10],[-40,-16],[-20,-16],[-20,16],[0,16],[0,-16],[20,-16],[20,16],[40,16],[40,0],[52,0]], slots:[[-46,3],[-33,-8],[-27,8],[-13,-8],[-7,8],[8,-8]]}
+ {name:'1. Sakura Gate',role:'defend',theme:0x78b86f,waves:5,difficulty:1,bossType:'gashadokuro',path:[[-52,8],[-30,8],[-30,-12],[0,-12],[0,8],[52,8]],slots:[[-42,15],[-34,1],[-22,1],[-15,-19],[-4,-5],[18,1]]},
+ {name:'2. Moonlit Raid',role:'attack',theme:0x638aa0,waves:6,difficulty:1,bossType:'namazu',path:[[-52,-10],[-34,-10],[-34,12],[-10,12],[-10,-5],[22,-5],[22,12],[52,12]],slots:[[-44,-3],[-28,-18],[-27,18],[-15,5],[0,2],[28,5]]},
+ {name:'3. Ember Shrine',role:'defend',theme:0xb47a4b,waves:6,difficulty:1,bossType:'gashadokuro',path:[[-52,12],[-38,12],[-38,-14],[-15,-14],[-15,8],[15,8],[15,-10],[38,-10],[38,12],[52,12]],slots:[[-45,4],[-31,4],[-24,-20],[-9,-5],[0,15],[23,0]]},
+ {name:'4. Frost Pass Assault',role:'attack',theme:0x8cb8c5,waves:7,difficulty:2,bossType:'namazu',path:[[-52,0],[-38,0],[-38,-16],[-12,-16],[-12,16],[12,16],[12,-8],[36,-8],[36,8],[52,8]],slots:[[-45,8],[-31,-8],[-20,-9],[-5,8],[4,22],[20,0]]},
+ {name:'5. Spirit Forest',role:'defend',theme:0x4f8f62,waves:7,difficulty:2,bossType:'orochi',path:[[-52,14],[-30,14],[-30,-14],[30,-14],[30,14],[-12,14],[-12,0],[12,0],[12,8],[52,8]],slots:[[-43,7],[-36,-4],[-20,-20],[-4,-7],[-20,20],[20,7]]},
+ {name:'6. Shinobi Crossing',role:'attack',theme:0x766f91,waves:8,difficulty:2,bossType:'gashadokuro',path:[[-52,-14],[-28,-14],[-28,14],[-5,14],[-5,-6],[18,-6],[18,14],[38,14],[38,-4],[52,-4]],slots:[[-42,-7],[-34,5],[-21,20],[-12,5],[3,1],[25,7]]},
+ {name:'7. Sacred Causeway',role:'defend',theme:0x5fa6b6,waves:8,difficulty:2,bossType:'namazu',path:[[-52,8],[-40,8],[-40,-16],[-20,-16],[-20,16],[5,16],[5,-16],[28,-16],[28,8],[52,8]],slots:[[-46,15],[-33,-8],[-26,8],[-13,-8],[-3,8],[12,-8]]},
+ {name:'8. Orochi Run',role:'attack',theme:0xb06d4d,waves:9,difficulty:3,bossType:'orochi',path:[[-52,0],[-42,0],[-42,16],[-22,16],[-22,-16],[0,-16],[0,16],[22,16],[22,-8],[42,-8],[42,8],[52,8]],slots:[[-47,-7],[-35,8],[-28,-8],[-15,8],[-7,-9],[8,8]]},
+ {name:'9. Yokai Labyrinth',role:'defend',theme:0x75689c,waves:9,difficulty:3,bossType:'gashadokuro',path:[[-52,-12],[-36,-12],[-36,14],[-18,14],[-18,-4],[0,-4],[0,14],[18,14],[18,-14],[38,-14],[38,6],[52,6]],slots:[[-45,-5],[-30,5],[-24,-11],[-12,5],[6,5],[24,-7]]},
+ {name:'10. Palace of Eight Heads',role:'attack',theme:0x8b5962,waves:10,difficulty:3,bossType:'orochi',path:[[-52,10],[-40,10],[-40,-16],[-20,-16],[-20,16],[0,16],[0,-16],[20,-16],[20,16],[40,16],[40,0],[52,0]],slots:[[-46,3],[-33,-8],[-27,8],[-13,-8],[-7,8],[8,-8]]}
 ];
-let campaignSave = JSON.parse(localStorage.getItem('spellboundCampaignV4') || '{"unlocked":1,"stars":{}}');
+let campaignSave = JSON.parse(localStorage.getItem('yokaiSiegeCampaignV5') || '{"unlocked":1,"stars":{}}');
 
 // --- 2. 3D PATH & TEAM WIZARD SLOTS DEFINITION ---
 let pathNodes = [
@@ -112,8 +112,8 @@ function showBattleText(text) {
 // --- 3. THREE.JS SCENE SETUP ---
 const container = document.getElementById('canvas-container');
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0f172a);
-scene.fog = new THREE.FogExp2(0x0f172a, 0.012);
+scene.background = new THREE.Color(0x9ed9f2);
+scene.fog = new THREE.FogExp2(0xc9eaf4, 0.0045);
 
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(0, 66, 62);
@@ -126,7 +126,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.08;
+renderer.toneMappingExposure = 1.45;
 container.appendChild(renderer.domElement);
 
 function updateCameraViewport() {
@@ -151,10 +151,10 @@ function updateCameraViewport() {
 window.addEventListener('resize', updateCameraViewport);
 
 // Lighting
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+const ambientLight = new THREE.AmbientLight(0xfff4dc, 1.18);
 scene.add(ambientLight);
 
-const dirLight = new THREE.DirectionalLight(0xfffaed, 0.95);
+const dirLight = new THREE.DirectionalLight(0xfff0c2, 1.35);
 dirLight.position.set(20, 45, 25);
 dirLight.castShadow = true;
 dirLight.shadow.mapSize.width = 2048;
@@ -167,7 +167,7 @@ dirLight.shadow.camera.top = 25;
 dirLight.shadow.camera.bottom = -25;
 scene.add(dirLight);
 
-const hemiLight = new THREE.HemisphereLight(0x38bdf8, 0x1e293b, 0.35);
+const hemiLight = new THREE.HemisphereLight(0xbbe9ff, 0x5d7f52, 0.72);
 scene.add(hemiLight);
 
 // --- 4. ENVIRONMENT & MESH BUILDERS ---
@@ -181,7 +181,7 @@ scene.add(ground);
 function buildPathMesh() {
     const group = new THREE.Group();
     const pathWidth = 3.6;
-    const pathMat = new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.9 });
+    const pathMat = new THREE.MeshStandardMaterial({ color: 0xd9b679, roughness: 0.95 });
 
     for (let i = 0; i < pathNodes.length - 1; i++) {
         const p1 = pathNodes[i];
@@ -707,11 +707,11 @@ class KnightEntity {
             this.slowTimer -= dt / 1000;
         }
 
-        let curSpeed = (this.slowTimer > 0) ? (this.speed * 0.45) : this.speed;
+        this.buffTimer=Math.max(0,(this.buffTimer||0)-dt/1000);this.drumBuff=Math.max(0,(this.drumBuff||0)-dt/1000);this.stunTimer=Math.max(0,(this.stunTimer||0)-dt/1000);let curSpeed=this.stunTimer>0?0:((this.slowTimer>0)?this.speed*.45:this.speed)*(this.buffTimer>0?1.45:1)*(this.drumBuff>0?1.3:1);
 
         let curX = this.mesh.position.x;
         let curZ = this.mesh.position.z;
-        // Disruptors remain on the road and strike the first nearby eligible wizard.
+        // Shinobis remain on the road and strike the first nearby eligible wizard.
         if (this.unitType === 'disruptor') {
             const target = wizards.find(w => w.team !== this.team && w.state === 'ACTIVE' && Math.hypot(w.mesh.position.x-curX,w.mesh.position.z-curZ) < 6.5);
             if (target && target.putToSleep(10)) {
@@ -839,16 +839,14 @@ function triggerKnightWave() {
     if(!gameActive) return;
     waveCount++;
     const level=CAMPAIGN_LEVELS[currentLevelIndex];
-    waveInterval = Math.max(3.4, 7.5 - (waveCount * 0.12));
-
-    const batchSize = Math.min(4, 2 + Math.floor(waveCount / 6));
-    for (let i = 0; i < batchSize; i++) {
-        setTimeout(() => {
-            knights.push(new KnightEntity('player', false));
-            knights.push(new KnightEntity('enemy', false));
-            if(level.boss && waveCount===level.waves && i===0) knights.push(new KnightEntity('enemy', true));
-        }, i * 400);
-    }
+    waveInterval = Math.max(4.2, 8.4 - waveCount * 0.12);
+    const batchSize=Math.min(5,2+Math.floor(waveCount/4));
+    for(let i=0;i<batchSize;i++) setTimeout(()=>{
+        if(level.role==='defend') knights.push(new KnightEntity('enemy',false,Math.random()<.16?'disruptor':'knight'));
+        else knights.push(new KnightEntity('player',false,'knight'));
+        if(level.role==='attack' && Math.random()<.72) knights.push(new KnightEntity('enemy',false,'knight'));
+        if(waveCount===level.waves && i===batchSize-1) knights.push(new BossEntity(level.role==='defend'?'enemy':'enemy',level.bossType));
+    },i*420);
 }
 
 setInterval(() => {
@@ -888,12 +886,12 @@ function updateHUD() {
 }
 
 document.getElementById('btn-knight').onclick = () => {
-    if (gold >= 40) {
-        gold -= 40;
-        knights.push(new KnightEntity('player', true));
+    if (gold >= 80) {
+        gold -= 80;
+        knights.push(new KnightEntity('player', true, 'onna'));
         updateHUD();
     } else {
-        alert("Not enough gold! Read the spellbook for +50g!");
+        showBattleText('You need 80 gold for an Onna-Musha.');
     }
 };
 
@@ -934,7 +932,7 @@ document.getElementById('btn-spellbook').onclick = () => {
 
 document.getElementById('btn-disruptor').onclick = () => {
     if(gold>=55){gold-=55;knights.push(new KnightEntity('player',false,'disruptor'));updateHUD();}
-    else showBattleText('Not enough gold for a Disruptor.');
+    else showBattleText('Not enough gold for a Shinobi.');
 };
 document.getElementById('btn-heal').onclick = () => {
     if(gold<45){showBattleText('Not enough gold for Healing Light.');return;}
@@ -957,8 +955,8 @@ document.getElementById('btn-close-upgrade').onclick = () => {
 // Level 1 -> 2 Fire Specialization
 document.getElementById('btn-upgrade-fire').onclick = () => {
     if (!selectedWizard) return;
-    if (gold >= 40) {
-        gold -= 40;
+    if (gold >= 80) {
+        gold -= 80;
         selectedWizard.specialize('fire');
         updateHUD();
         openUpgradeModal(selectedWizard);
@@ -968,8 +966,8 @@ document.getElementById('btn-upgrade-fire').onclick = () => {
 // Level 1 -> 2 Ice Specialization
 document.getElementById('btn-upgrade-ice').onclick = () => {
     if (!selectedWizard) return;
-    if (gold >= 40) {
-        gold -= 40;
+    if (gold >= 80) {
+        gold -= 80;
         selectedWizard.specialize('ice');
         updateHUD();
         openUpgradeModal(selectedWizard);
@@ -1059,6 +1057,9 @@ window.addEventListener('click', (e) => {
         } return;
     }
 
+    if(mode==='BUILD_TORII'||mode==='BUILD_ROPE'){const hits=raycaster.intersectObject(ground);if(hits.length){const p=hits[0].point;if(mode==='BUILD_TORII')placeTorii(p.x,p.z);else placeRope(p.x,p.z);}return;}
+    if(mode==='BUILD_SOHEI'){const hits=raycaster.intersectObjects(slotMeshes);if(hits.length){const sd=hits[0].object.userData.slotData;if(sd&&sd.team==='player'&&!wizards.find(w=>w.homeX===sd.x&&w.homeZ===sd.z)){if(gold>=70){gold-=70;wizards.push(new SoheiEntity(sd.x,sd.z,'player'));mode='PLAY';updateHUD();}else showBattleText('A Sōhei costs 70 gold.');}}return;}
+
     if (mode === 'BUILD_WIZARD') {
         const intersects = raycaster.intersectObjects(slotMeshes);
         if (intersects.length > 0) {
@@ -1118,9 +1119,50 @@ const particles=[];
 function burstParticles(pos,color,count=10){for(let i=0;i<count;i++){const m=new THREE.Mesh(new THREE.SphereGeometry(.12,5,5),new THREE.MeshBasicMaterial({color}));m.position.copy(pos);m.position.y+=1;scene.add(m);particles.push({mesh:m,v:new THREE.Vector3((Math.random()-.5)*8,Math.random()*7+2,(Math.random()-.5)*8),life:.65});}}
 function clearEntities(){[...knights].forEach(x=>x.destroy());[...wizards].forEach(x=>x.destroy());[...projectiles].forEach(x=>scene.remove(x.mesh));knights.length=wizards.length=projectiles.length=0;}
 function slotsForLevel(level){const left=level.slots.map(([x,z])=>({x,z,team:'player'}));const right=left.map(s=>({x:-s.x,z:s.z,team:'enemy'}));return [...left,...right];}
-function loadLevel(index){currentLevelIndex=index;const L=CAMPAIGN_LEVELS[index];gameActive=true;clearEntities();pathNodes=L.path.map(([x,z])=>({x,z}));playerBasePos=pathNodes[0];enemyBasePos=pathNodes[pathNodes.length-1];wizardSlots=slotsForLevel(L);scene.remove(pathMeshGroup);pathMeshGroup=buildPathMesh();scene.add(pathMeshGroup);blueCastle.position.set(playerBasePos.x-3,0,playerBasePos.z);redCastle.position.set(enemyBasePos.x+3,0,enemyBasePos.z);ground.material.color.setHex(L.theme);refreshSlotMeshes();playerCastleMaxHp=100;enemyCastleMaxHp=L.boss?180:100;playerHp=100;enemyHp=enemyCastleMaxHp;gold=70;goldIncome=0;castleArmour=0;playerWizardRangeBonus=0;waveCount=0;waveTimer=0;readingStreak=0;spellCharge=100;levelCorrect=0;levelWrong=0;levelStartHp=playerHp;document.getElementById('campaign-modal').classList.add('hidden');document.getElementById('levelName').textContent=L.name;document.getElementById('waveGoal').textContent=L.waves;updateHUD();triggerKnightWave();startMusic();}
-function renderCampaign(){const grid=document.getElementById('level-grid');grid.innerHTML='';CAMPAIGN_LEVELS.forEach((L,i)=>{const b=document.createElement('button');const unlocked=i<campaignSave.unlocked;b.className='level-card'+(unlocked?'':' locked');const stars=campaignSave.stars[i]||0;b.innerHTML=`<strong>${L.name}</strong><span>${'⭐'.repeat(stars)}${'☆'.repeat(3-stars)}</span><small>${L.waves} waves${L.boss?' · Boss':''}</small>`;b.disabled=!unlocked;b.onclick=()=>loadLevel(i);grid.appendChild(b);});document.getElementById('starsTotal').textContent=Object.values(campaignSave.stars).reduce((a,b)=>a+b,0);}
-function finishLevel(won){if(!gameActive)return;gameActive=false;const L=CAMPAIGN_LEVELS[currentLevelIndex];let stars=0;if(won){stars=1+(playerHp>=60?1:0)+(levelWrong===0?1:0);campaignSave.stars[currentLevelIndex]=Math.max(campaignSave.stars[currentLevelIndex]||0,stars);campaignSave.unlocked=Math.max(campaignSave.unlocked,Math.min(CAMPAIGN_LEVELS.length,currentLevelIndex+2));localStorage.setItem('spellboundCampaignV4',JSON.stringify(campaignSave));victoryMusic();}document.getElementById('result-title').textContent=won?'🏆 Battle Won!':'🏰 Castle Fallen';document.getElementById('result-stars').textContent=won?'⭐'.repeat(stars)+'☆'.repeat(3-stars):'Try again';document.getElementById('result-summary').textContent=`${L.name} · ${levelCorrect} correct answers · Castle ${playerHp}/${playerCastleMaxHp}`;document.getElementById('btn-next-level').style.display=won&&currentLevelIndex<CAMPAIGN_LEVELS.length-1?'flex':'none';document.getElementById('result-modal').classList.remove('hidden');renderCampaign();}
+function loadLevel(index){currentLevelIndex=index;const L=CAMPAIGN_LEVELS[index];gameActive=true;clearEntities();clearStructures();pathNodes=L.path.map(([x,z])=>({x,z}));playerBasePos=pathNodes[0];enemyBasePos=pathNodes[pathNodes.length-1];wizardSlots=slotsForLevel(L).filter(s=>distanceToPath(s.x,s.z)>2.3);scene.remove(pathMeshGroup);pathMeshGroup=buildPathMesh();scene.add(pathMeshGroup);blueCastle.position.set(playerBasePos.x-3,0,playerBasePos.z);redCastle.position.set(enemyBasePos.x+3,0,enemyBasePos.z);ground.material.color.setHex(L.theme);refreshSlotMeshes();makeSacredTreePairs();playerCastleMaxHp=120;enemyCastleMaxHp=160;playerHp=120;enemyHp=160;gold=85;goldIncome=0;castleArmour=0;playerWizardRangeBonus=0;waveCount=0;waveTimer=0;readingStreak=0;spellCharge=100;levelCorrect=0;levelWrong=0;castleVisualLevel=0;applyCastleVisual();document.getElementById('campaign-modal').classList.add('hidden');document.getElementById('levelName').textContent=L.name;document.getElementById('missionRole').textContent=L.role==='defend'?'🛡 DEFEND':'⛩ ATTACK';document.getElementById('objectiveText').textContent=L.role==='defend'?'Protect Hana Palace':'Destroy the Yokai Palace';document.getElementById('waveGoal').textContent=L.waves;updateHUD();triggerKnightWave();startMusic();}
+function renderCampaign(){const grid=document.getElementById('level-grid');grid.innerHTML='';CAMPAIGN_LEVELS.forEach((L,i)=>{const b=document.createElement('button');const unlocked=i<campaignSave.unlocked;b.className='level-card'+(unlocked?'':' locked');const stars=campaignSave.stars[i]||0;b.innerHTML=`<strong>${L.name}</strong><span>${'⭐'.repeat(stars)}${'☆'.repeat(3-stars)}</span><small>${L.role==='defend'?'🛡 Defend':'⛩ Attack'} · ${L.waves} waves · ${bossDisplayName(L.bossType)}</small>`;b.disabled=!unlocked;b.onclick=()=>loadLevel(i);grid.appendChild(b);});document.getElementById('starsTotal').textContent=Object.values(campaignSave.stars).reduce((a,b)=>a+b,0);}
+function finishLevel(won){if(!gameActive)return;gameActive=false;const L=CAMPAIGN_LEVELS[currentLevelIndex];let stars=0;if(won){stars=1+(playerHp>=60?1:0)+(levelWrong===0?1:0);campaignSave.stars[currentLevelIndex]=Math.max(campaignSave.stars[currentLevelIndex]||0,stars);campaignSave.unlocked=Math.max(campaignSave.unlocked,Math.min(CAMPAIGN_LEVELS.length,currentLevelIndex+2));localStorage.setItem('yokaiSiegeCampaignV5',JSON.stringify(campaignSave));victoryMusic();}document.getElementById('result-title').textContent=won?'🏆 Battle Won!':'🏰 Castle Fallen';document.getElementById('result-stars').textContent=won?'⭐'.repeat(stars)+'☆'.repeat(3-stars):'Try again';document.getElementById('result-summary').textContent=`${L.name} · ${levelCorrect} correct answers · Castle ${playerHp}/${playerCastleMaxHp}`;document.getElementById('btn-next-level').style.display=won&&currentLevelIndex<CAMPAIGN_LEVELS.length-1?'flex':'none';document.getElementById('result-modal').classList.remove('hidden');
+// --- V5 JAPANESE FOLKLORE SYSTEMS ---
+let structures=[], sacredTrees=[], castleVisualLevel=0;
+function bossDisplayName(t){return t==='gashadokuro'?'Gashadokuro':t==='namazu'?'Namazu':'Yamata no Orochi';}
+function clearStructures(){structures.forEach(s=>{if(s.mesh)scene.remove(s.mesh);if(s.a)scene.remove(s.a);if(s.b)scene.remove(s.b)});structures=[];sacredTrees.forEach(t=>scene.remove(t));sacredTrees=[];}
+function makeToriiMesh(){const q=new THREE.Group(),red=mat(0xd83232,.65),black=mat(0x231815,.8);q.add(mesh(new THREE.BoxGeometry(.45,4,.45),red,-1.4,2,0),mesh(new THREE.BoxGeometry(.45,4,.45),red,1.4,2,0));q.add(mesh(new THREE.BoxGeometry(4,.38,.5),red,0,4,0),mesh(new THREE.BoxGeometry(3.3,.28,.42),black,0,3.45,0));return q;}
+function makeTree(x,z){const t=new THREE.Group();t.add(mesh(new THREE.CylinderGeometry(.22,.32,2.6,8),mat(0x684126,.95),0,1.3,0));for(let i=0;i<5;i++)t.add(mesh(new THREE.SphereGeometry(.65,8,6),mat(0xf59bb5,.8),Math.sin(i*1.4)*.7,2.7+Math.cos(i)*.3,Math.cos(i*1.4)*.7));t.position.set(x,0,z);scene.add(t);sacredTrees.push(t);return t;}
+function makeSacredTreePairs(){for(let i=1;i<pathNodes.length-1;i+=3){const a=pathNodes[i-1],b=pathNodes[i],dx=b.x-a.x,dz=b.z-a.z,l=Math.hypot(dx,dz)||1,nx=-dz/l,nz=dx/l;makeTree(b.x+nx*4,b.z+nz*4);makeTree(b.x-nx*4,b.z-nz*4);}}
+function nearestPathPoint(x,z){let best={x:pathNodes[0].x,z:pathNodes[0].z,d:1e9};for(let i=0;i<pathNodes.length-1;i++){const a=pathNodes[i],b=pathNodes[i+1],dx=b.x-a.x,dz=b.z-a.z,l2=dx*dx+dz*dz,t=Math.max(0,Math.min(1,((x-a.x)*dx+(z-a.z)*dz)/l2)),px=a.x+t*dx,pz=a.z+t*dz,d=Math.hypot(x-px,z-pz);if(d<best.d)best={x:px,z:pz,d};}return best;}
+function placeTorii(x,z){const p=nearestPathPoint(x,z);if(p.d>3){showBattleText('Place Torii Gates directly on the road.');return}if(gold<40){showBattleText('A Torii Gate costs 40 gold.');return}gold-=40;const m=makeToriiMesh();m.position.set(p.x,0,p.z);scene.add(m);structures.push({type:'torii',mesh:m,x:p.x,z:p.z,life:30});mode='PLAY';updateHUD();}
+function placeRope(x,z){const p=nearestPathPoint(x,z);if(p.d>3){showBattleText('Stretch the shimenawa across a road near paired trees.');return}if(gold<50){showBattleText('Shimenawa costs 50 gold.');return}gold-=50;const rope=mesh(new THREE.TorusGeometry(2.8,.08,6,24,Math.PI),mat(0xe7d5a0,.9),p.x,.8,p.z);rope.rotation.x=Math.PI/2;scene.add(rope);structures.push({type:'rope',mesh:rope,x:p.x,z:p.z,armed:true,active:0});mode='PLAY';updateHUD();}
+function updateStructures(dt){for(let i=structures.length-1;i>=0;i--){const s=structures[i];if(s.type==='torii'){s.life-=dt/1000;s.mesh.rotation.y=Math.sin(performance.now()*.001)*.03;knights.filter(k=>k.team==='player'&&Math.hypot(k.mesh.position.x-s.x,k.mesh.position.z-s.z)<2.4).forEach(k=>k.buffTimer=Math.max(k.buffTimer||0,5));if(s.life<=0){scene.remove(s.mesh);structures.splice(i,1)}}else{if(s.active>0)s.active-=dt/1000;const target=knights.find(k=>k.team==='enemy'&&Math.hypot(k.mesh.position.x-s.x,k.mesh.position.z-s.z)<2.5);if(target&&(s.armed||s.active>0)){target.stunTimer=Math.max(target.stunTimer||0,3);if(s.armed){s.armed=false;s.active=5;burstParticles(s.mesh.position,0xfff1b8,18);}}}}
+}
+
+createKnightMesh = function(team,isMega=false){
+ const g=new THREE.Group(),ally=team==='player';const lacquer=mat(ally?0x174f78:0x8d2831,.5,.35),cloth=mat(ally?0x263f57:0x4a2025,.8),goldM=mat(0xd9aa3d,.32,.6),skin=mat(0xe8b184,.8),dark=mat(0x171717,.7);
+ const torso=mesh(new THREE.CylinderGeometry(.48,.62,1.05,10),cloth,0,1,0);g.add(torso);
+ for(let y=.7;y<1.5;y+=.24){const plate=mesh(new THREE.BoxGeometry(1.1,.18,.62),lacquer,0,y,.05);g.add(plate)}
+ const head=mesh(new THREE.SphereGeometry(.32,10,8),skin,0,1.75,0);g.add(head);
+ const kabuto=mesh(new THREE.SphereGeometry(.43,10,6,0,Math.PI*2,0,Math.PI/1.7),lacquer,0,1.95,0);g.add(kabuto);
+ const crest=mesh(new THREE.TorusGeometry(.3,.07,6,14,Math.PI),goldM,0,2.22,.02);crest.rotation.z=Math.PI;g.add(crest);
+ const legs=[];for(const x of[-.22,.22]){const l=mesh(new THREE.CylinderGeometry(.13,.17,.65,7),dark,x,.3,0);g.add(l);legs.push(l)}
+ const arms=[];for(const x of[-.58,.58]){const a=new THREE.Group();a.position.set(x,1.2,0);a.add(mesh(new THREE.CylinderGeometry(.13,.17,.72,7),lacquer,0,-.25,0));g.add(a);arms.push(a)}
+ if(isMega){const shaft=mesh(new THREE.CylinderGeometry(.055,.055,3.3,7),dark,.85,1.25,.1);shaft.rotation.z=-.24;g.add(shaft);const blade=mesh(new THREE.BoxGeometry(.16,1.15,.12),goldM,1.2,2.55,.1);blade.rotation.z=-.24;g.add(blade);g.scale.setScalar(1.55);const hair=mesh(new THREE.SphereGeometry(.34,9,7),dark,0,1.83,-.25);g.add(hair)}else{const katana=mesh(new THREE.BoxGeometry(.09,1.45,.13),goldM,.62,.9,.15);katana.rotation.z=-.45;g.add(katana)}
+ g.userData.parts={leftArm:arms[0],rightArm:arms[1],leftLeg:legs[0],rightLeg:legs[1],plume:crest};return g;
+};
+createWizardMesh = function(team,type='standard',level=1){
+ const g=new THREE.Group(),ally=team==='player';let c=ally?0xeee4d2:0x512f47,accent=ally?0x345b8a:0xa43b32;if(type==='fire'){c=0xe8c58f;accent=0xc53d21}if(type==='ice'){c=0xd8edf2;accent=0x3b8eaa}
+ const robe=mesh(new THREE.ConeGeometry(.72,1.65,12),mat(c,.8),0,.82,0);g.add(robe);const sash=mesh(new THREE.CylinderGeometry(.55,.55,.15,10),mat(accent,.55),0,1.05,0);g.add(sash);const head=mesh(new THREE.SphereGeometry(.3,10,8),mat(0xe8b184,.8),0,1.7,0);g.add(head);const cap=mesh(new THREE.CylinderGeometry(.34,.42,.32,10),mat(0x161616,.72),0,1.98,0);g.add(cap);const staffGroup=new THREE.Group();staffGroup.position.set(.62,1.05,.1);staffGroup.add(mesh(new THREE.CylinderGeometry(.045,.055,2.2,7),mat(0x5b3823,.9),0,0,0));const crystal=mesh(new THREE.OctahedronGeometry(.24),mat(accent,.25,.1,accent),0,1.15,0);staffGroup.add(crystal);g.add(staffGroup);const paper=mesh(new THREE.BoxGeometry(.45,.7,.03),mat(0xfff4d7,.95),-.45,1.25,.45);g.add(paper);g.userData.parts={staffGroup,crystal,hat:cap};return g;
+};
+function addPagodaDetails(castle,ally){if(castle.userData.pagoda)return;castle.userData.pagoda=true;const white=mat(0xf4ead5,.85),roof=mat(ally?0x234f75:0x7d2b32,.48,.15),wood=mat(0x5b2c20,.8);for(let i=0;i<3;i++){const y=5+i*1.35,s=3.8-i*.75;castle.add(mesh(new THREE.BoxGeometry(s,1,s),white,0,y,0));const r=mesh(new THREE.CylinderGeometry(s*.78,s*.98,.35,4),roof,0,y+.65,0);r.rotation.y=Math.PI/4;castle.add(r)}castle.add(mesh(new THREE.CylinderGeometry(.08,.08,2,8),wood,0,9.4,0));}
+addPagodaDetails(blueCastle,true);addPagodaDetails(redCastle,false);
+function createSoheiMesh(team){const g=createWizardMesh(team,'standard',1);g.traverse(o=>{if(o.material&&o.material.color)o.material.color.offsetHSL(.09,-.2,.08)});const drum=mesh(new THREE.CylinderGeometry(.55,.55,.55,16),mat(0x8b2d20,.7),-.75,1,0);drum.rotation.z=Math.PI/2;g.add(drum);g.userData.drum=drum;return g;}
+class SoheiEntity extends WizardEntity{constructor(x,z,team){super(x,z,team);scene.remove(this.mesh);this.type='sohei';this.range=10;this.mesh=createSoheiMesh(team);this.mesh.position.set(x,0,z);this.mesh.userData={entity:this};scene.add(this.mesh)}update(dt){const t=performance.now()*.006;this.mesh.rotation.z=Math.sin(t)*.025;knights.filter(k=>k.team===this.team&&Math.hypot(k.mesh.position.x-this.mesh.position.x,k.mesh.position.z-this.mesh.position.z)<this.range).forEach(k=>k.drumBuff=.25);}}
+function makeBossMesh(type){const g=new THREE.Group();if(type==='gashadokuro'){const bone=mat(0xe8dfc7,.85);g.add(mesh(new THREE.SphereGeometry(1.3,12,10),bone,0,5.2,0),mesh(new THREE.CylinderGeometry(.7,.9,4,8),bone,0,2.8,0));for(let i=-1;i<=1;i+=2){g.add(mesh(new THREE.CylinderGeometry(.25,.3,4,8),bone,i*.9,2,0));g.add(mesh(new THREE.CylinderGeometry(.2,.25,4.5,8),bone,i*1.35,3.3,0));}}else if(type==='namazu'){g.add(mesh(new THREE.SphereGeometry(2.1,16,10),mat(0x334b55,.75),0,1.8,0));g.scale.z=1.8;g.add(mesh(new THREE.ConeGeometry(.7,2,8),mat(0x526c75,.8),0,2.2,-3));}else{for(let i=0;i<8;i++){const a=(i-3.5)*.28;const neck=mesh(new THREE.CylinderGeometry(.28,.4,3.3,8),mat(0x2f7d4b,.65),Math.sin(a)*2,2.5,Math.cos(a)*1.2);neck.rotation.z=a;g.add(neck);g.add(mesh(new THREE.SphereGeometry(.62,10,8),mat([0xb33a2d,0x5f9e47,0x5a8cc8,0x7fcce0][i%4],.55),Math.sin(a)*3,4,Math.cos(a)*1.8));}g.add(mesh(new THREE.SphereGeometry(1.4,12,10),mat(0x356d3f,.65),0,1.3,0));}return g;}
+class BossEntity extends KnightEntity{constructor(team,type){super(team,true,'boss');scene.remove(this.mesh);this.bossType=type;this.hp=type==='orochi'?520:380;this.maxHp=this.hp;this.speed=type==='gashadokuro'?1.35:type==='namazu'?1.7:1.5;this.mesh=makeBossMesh(type);this.mesh.position.copy(pathNodes[this.pathIdx]);scene.add(this.mesh);const sm=new THREE.SpriteMaterial({map:createHealthBarTexture(this.hp,this.maxHp),transparent:true});this.hpSprite=new THREE.Sprite(sm);this.hpSprite.position.set(0,6.5,0);this.hpSprite.scale.set(5,.7,1);this.mesh.add(this.hpSprite);this.abilityClock=0;}update(dt){this.abilityClock+=dt/1000;if(this.bossType==='namazu'&&this.abilityClock>5){this.abilityClock=0;wizards.filter(w=>Math.hypot(w.mesh.position.x-this.mesh.position.x,w.mesh.position.z-this.mesh.position.z)<12).forEach(w=>w.putToSleep(3));shakeAmount=1.5;showBattleText('🌊 Namazu shakes the earth — nearby towers are stunned!');}if(this.bossType==='gashadokuro'){wizards.filter(w=>w.state==='ACTIVE'&&Math.hypot(w.mesh.position.x-this.mesh.position.x,w.mesh.position.z-this.mesh.position.z)<2.8).forEach(w=>w.putToSleep(6));}super.update(dt);}}
+function applyCastleVisual(){[blueCastle,redCastle].forEach((c,ci)=>{c.scale.setScalar(1+castleVisualLevel*.08);c.traverse(o=>{if(o.material&&o.material.color&&castleVisualLevel>0&&ci===0)o.material.emissive&&o.material.emissive.setHex(castleVisualLevel>2?0x402000:0x101010)});});}
+['btn-fortify','btn-armour','btn-treasury','btn-arcane'].forEach(id=>document.getElementById(id).addEventListener('click',()=>{castleVisualLevel=Math.min(4,castleVisualLevel+1);applyCastleVisual();}));
+document.getElementById('btn-sohei').onclick=()=>{mode=mode==='BUILD_SOHEI'?'PLAY':'BUILD_SOHEI';showBattleText(mode==='BUILD_SOHEI'?'Choose a tower circle for your Sōhei.':'Placement cancelled.');};
+document.getElementById('btn-torii').onclick=()=>{mode=mode==='BUILD_TORII'?'PLAY':'BUILD_TORII';showBattleText('Click directly on the path to place a 30-second Torii Gate.');};
+document.getElementById('btn-rope').onclick=()=>{mode=mode==='BUILD_ROPE'?'PLAY':'BUILD_ROPE';showBattleText('Click a path crossing between sacred cherry trees.');};
+renderCampaign();}
 document.getElementById('btn-next-level').onclick=()=>{document.getElementById('result-modal').classList.add('hidden');loadLevel(Math.min(currentLevelIndex+1,CAMPAIGN_LEVELS.length-1));};
 document.getElementById('btn-level-select').onclick=()=>{document.getElementById('result-modal').classList.add('hidden');document.getElementById('campaign-modal').classList.remove('hidden');renderCampaign();};
 renderCampaign();
@@ -1141,6 +1183,7 @@ function animate() {
       if (waveTimer >= waveInterval && waveCount < goal) { waveTimer = 0; triggerKnightWave(); }
     }
 
+    updateStructures(dt);
     wizards.forEach(w => w.update(dt));
 
     for (let i = knights.length - 1; i >= 0; i--) {
@@ -1148,7 +1191,7 @@ function animate() {
         k.update(dt);
         if (k.hp <= 0) {
             if (k.team === 'enemy') {
-                let reward = k.isMega ? 50 : 15;
+                let reward = k.isMega ? 24 : (k.unitType==='disruptor'?10:6);
                 gold += reward;
                 updateHUD();
                 createFloatingGoldText(k.mesh.position.x, 2.5, k.mesh.position.z, `+${reward}g`);
@@ -1177,9 +1220,9 @@ function animate() {
 
     if (playerHp <= 0) finishLevel(false);
     const goal=CAMPAIGN_LEVELS[currentLevelIndex].waves;
-    if (gameActive && waveCount>=goal && enemyHp<=0) finishLevel(true);
+    if (gameActive && CAMPAIGN_LEVELS[currentLevelIndex].role==='attack' && enemyHp<=0) finishLevel(true);
     // A battle also ends after the final wave has been cleared.
-    if (gameActive && waveCount>=goal && knights.filter(k=>k.team==='enemy').length===0 && waveTimer>2) { enemyHp=0; finishLevel(true); }
+    if (gameActive && CAMPAIGN_LEVELS[currentLevelIndex].role==='defend' && waveCount>=goal && knights.filter(k=>k.team==='enemy').length===0 && waveTimer>2) finishLevel(true);
     for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.life-=dt/1000;p.v.y-=12*dt/1000;p.mesh.position.addScaledVector(p.v,dt/1000);p.mesh.material.opacity=Math.max(0,p.life/.65);p.mesh.material.transparent=true;if(p.life<=0){scene.remove(p.mesh);particles.splice(i,1);}}
     if(shakeAmount>0){camera.position.x=(Math.random()-.5)*shakeAmount;camera.position.y=66+(Math.random()-.5)*shakeAmount;camera.position.z=62+(Math.random()-.5)*shakeAmount;shakeAmount*=.86;}else{camera.position.x=0;camera.position.y=66;camera.position.z=62;} camera.lookAt(0,-3,0);
 
