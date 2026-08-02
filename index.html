@@ -10,6 +10,7 @@
 
     <!-- 3D Canvas Container -->
     <div id="canvas-container"></div>
+    <button id="castle-hover-upgrade" aria-label="Upgrade castle" title="Upgrade castle">⬆️</button>
 
     <!-- UI Overlay Layer -->
     <div id="ui-layer">
@@ -25,7 +26,7 @@
             </div>
 
             <div class="hud-centre">
-                <div class="hud-wave">⚔️ Wave <span id="wave">1</span> · 🔥 Streak <span id="readingStreak">0</span></div>
+                <div class="hud-wave"><span id="levelName">Campaign</span> · ⚔️ Wave <span id="wave">1</span>/<span id="waveGoal">6</span> · ⭐ <span id="starsTotal">0</span> · 🔥 <span id="readingStreak">0</span></div>
                 <div class="spell-meter" title="The spellbook recharges during battle"><span>📖 <span id="spellCharge">100</span></span><div class="spell-meter-bg"><div id="spellChargeFill" class="spell-meter-fill"></div></div></div>
                 <div class="hud-gold">
                 <span>🪙</span>
@@ -49,9 +50,7 @@
             <button id="btn-wizard" class="btn">🧙 Build Wizard (50g)</button>
             <button id="btn-spellbook" class="btn btn-gold">📖 Cast Reading Spell</button>
             <button id="btn-disruptor" class="btn btn-purple">💥 Disruptor (55g)</button>
-            <button id="btn-heal" class="btn btn-heal">💚 Healing Light (45g)</button>
-            <button id="btn-castle" class="btn btn-dark">🏰 Castle Upgrades</button>
-            <button id="btn-editor" class="btn btn-dark">🛠️ Toggle Edit Mode</button>
+            <button id="btn-heal" class="btn btn-heal">💚 Select Wizard to Heal (45g)</button>
         </div>
 
     </div>
@@ -103,6 +102,23 @@
             </div>
             <button id="btn-close-castle" class="btn btn-dark modal-close">Close</button>
         </div>
+    </div>
+
+
+    <div id="campaign-modal" class="modal">
+      <div class="modal-content campaign-panel">
+        <h2>🗺️ Spellbound Campaign</h2>
+        <p>Complete each short battle to unlock the next realm. Stars are saved on this device.</p>
+        <div id="level-grid" class="level-grid"></div>
+      </div>
+    </div>
+    <div id="result-modal" class="modal hidden">
+      <div class="modal-content">
+        <h2 id="result-title">Victory!</h2><div id="result-stars" class="result-stars">⭐⭐⭐</div>
+        <p id="result-summary"></p>
+        <button id="btn-next-level" class="btn btn-gold">Next Battle</button>
+        <button id="btn-level-select" class="btn btn-dark">Campaign Map</button>
+      </div>
     </div>
 
     <!-- Three.js Library -->

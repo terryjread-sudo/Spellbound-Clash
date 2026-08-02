@@ -4,13 +4,20 @@
 let gold = 80;
 let playerHp = 100;
 let enemyHp = 100;
-let mode = 'PLAY'; // 'PLAY', 'BUILD_WIZARD', 'EDIT_SLOTS'
+let mode = 'PLAY'; // PLAY, BUILD_WIZARD, TARGET_HEAL
+let gameActive = false;
+let currentLevelIndex = 0;
+let levelStartHp = 100;
+let levelCorrect = 0;
+let levelWrong = 0;
+let shakeAmount = 0;
 let selectedWizard = null;
 let lastTime = Date.now();
 let spellCharge = 100;
 const maxSpellCharge = 100;
 let readingStreak = 0;
-let goldIncome = 1;
+let goldIncome = 0;
+let incomeClock = 0;
 let playerCastleMaxHp = 100;
 let enemyCastleMaxHp = 100;
 let playerWizardRangeBonus = 0;
@@ -22,8 +29,22 @@ let waveCount = 0;
 let waveTimer = 0;
 let waveInterval = 6.0;
 
+const CAMPAIGN_LEVELS = [
+ {name:'1. Meadow March', theme:0x2e6f40, waves:5, difficulty:1, path:[[-52,8],[-30,8],[-30,-12],[0,-12],[0,8],[52,8]], slots:[[-42,15],[-34,1],[-22,1],[-15,-19],[-4,-5],[18,1]]},
+ {name:'2. Moonlit Bend', theme:0x285046, waves:6, difficulty:1, path:[[-52,-10],[-34,-10],[-34,12],[-10,12],[-10,-5],[22,-5],[22,12],[52,12]], slots:[[-44,-3],[-28,-18],[-27,18],[-15,5],[0,2],[28,5]]},
+ {name:'3. Ember Road', theme:0x59412c, waves:6, difficulty:1, path:[[-52,12],[-38,12],[-38,-14],[-15,-14],[-15,8],[15,8],[15,-10],[38,-10],[38,12],[52,12]], slots:[[-45,4],[-31,4],[-24,-20],[-9,-5],[0,15],[23,0]]},
+ {name:'4. Frost Pass', theme:0x365b69, waves:7, difficulty:2, path:[[-52,0],[-38,0],[-38,-16],[-12,-16],[-12,16],[12,16],[12,-8],[36,-8],[36,8],[52,8]], slots:[[-45,8],[-31,-8],[-20,-9],[-5,8],[4,22],[20,0]]},
+ {name:'5. Forest Spiral', theme:0x244b35, waves:7, difficulty:2, path:[[-52,14],[-30,14],[-30,-14],[30,-14],[30,14],[-12,14],[-12,0],[12,0],[12,8],[52,8]], slots:[[-43,7],[-36,-4],[-20,-20],[-4,-7],[-20,20],[20,7]]},
+ {name:'6. Shadow Crossing', theme:0x34304d, waves:8, difficulty:2, path:[[-52,-14],[-28,-14],[-28,14],[-5,14],[-5,-6],[18,-6],[18,14],[38,14],[38,-4],[52,-4]], slots:[[-42,-7],[-34,5],[-21,20],[-12,5],[3,1],[25,7]]},
+ {name:'7. Crystal Causeway', theme:0x27516a, waves:8, difficulty:2, path:[[-52,8],[-40,8],[-40,-16],[-20,-16],[-20,16],[5,16],[5,-16],[28,-16],[28,8],[52,8]], slots:[[-46,15],[-33,-8],[-26,8],[-13,-8],[-3,8],[12,-8]]},
+ {name:'8. Dragon Run', theme:0x65402d, waves:9, difficulty:3, path:[[-52,0],[-42,0],[-42,16],[-22,16],[-22,-16],[0,-16],[0,16],[22,16],[22,-8],[42,-8],[42,8],[52,8]], slots:[[-47,-7],[-35,8],[-28,-8],[-15,8],[-7,-9],[8,8]]},
+ {name:'9. Arcane Labyrinth', theme:0x3d365f, waves:9, difficulty:3, path:[[-52,-12],[-36,-12],[-36,14],[-18,14],[-18,-4],[0,-4],[0,14],[18,14],[18,-14],[38,-14],[38,6],[52,6]], slots:[[-45,-5],[-30,5],[-24,-11],[-12,5],[6,5],[24,-7]]},
+ {name:'10. Crown Siege', theme:0x4b3138, waves:10, difficulty:3, boss:true, path:[[-52,10],[-40,10],[-40,-16],[-20,-16],[-20,16],[0,16],[0,-16],[20,-16],[20,16],[40,16],[40,0],[52,0]], slots:[[-46,3],[-33,-8],[-27,8],[-13,-8],[-7,8],[8,-8]]}
+];
+let campaignSave = JSON.parse(localStorage.getItem('spellboundCampaignV4') || '{"unlocked":1,"stars":{}}');
+
 // --- 2. 3D PATH & TEAM WIZARD SLOTS DEFINITION ---
-const pathNodes = [
+let pathNodes = [
     { x: -26, z: 4 },
     { x: -14, z: 4 },
     { x: -14, z: -6 },
@@ -32,8 +53,8 @@ const pathNodes = [
     { x: 26, z: 4 }
 ];
 
-const playerBasePos = pathNodes[0];
-const enemyBasePos = pathNodes[pathNodes.length - 1];
+let playerBasePos = pathNodes[0];
+let enemyBasePos = pathNodes[pathNodes.length - 1];
 
 // Separate Wizard Slots per Team
 let wizardSlots = [
@@ -95,8 +116,8 @@ scene.background = new THREE.Color(0x0f172a);
 scene.fog = new THREE.FogExp2(0x0f172a, 0.012);
 
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 34, 28);
-camera.lookAt(0, -2, 0);
+camera.position.set(0, 66, 62);
+camera.lookAt(0, -3, 0);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(window.devicePixelRatio);
@@ -112,7 +133,7 @@ function updateCameraViewport() {
     const aspect = window.innerWidth / window.innerHeight;
     camera.aspect = aspect;
 
-    const baseFov = 50;
+    const baseFov = 52;
     const targetAspect = 1.65;
 
     if (aspect < targetAspect) {
@@ -150,7 +171,7 @@ const hemiLight = new THREE.HemisphereLight(0x38bdf8, 0x1e293b, 0.35);
 scene.add(hemiLight);
 
 // --- 4. ENVIRONMENT & MESH BUILDERS ---
-const groundGeo = new THREE.PlaneGeometry(70, 45);
+const groundGeo = new THREE.PlaneGeometry(130, 78);
 const groundMat = new THREE.MeshStandardMaterial({ color: 0x2e6f40, roughness: 0.8, metalness: 0.1 });
 const ground = new THREE.Mesh(groundGeo, groundMat);
 ground.rotation.x = -Math.PI / 2;
@@ -182,7 +203,7 @@ function buildPathMesh() {
 
     return group;
 }
-scene.add(buildPathMesh());
+let pathMeshGroup = buildPathMesh(); scene.add(pathMeshGroup);
 
 // Lightweight model helpers
 function mat(color, roughness = 0.65, metalness = 0.05, emissive = 0x000000) {
@@ -297,7 +318,7 @@ function createCastleMesh(teamColor) {
 }
 const blueCastle = createCastleMesh(0x38bdf8);
 blueCastle.position.set(playerBasePos.x - 2, 0, playerBasePos.z);
-scene.add(blueCastle);
+scene.add(blueCastle); blueCastle.userData.isPlayerCastle=true;
 
 const redCastle = createCastleMesh(0xf43f5e);
 redCastle.position.set(enemyBasePos.x + 2, 0, enemyBasePos.z);
@@ -548,9 +569,14 @@ class WizardEntity {
         }
     }
     putToSleep(seconds=8) {
-        if(this.state!=='ACTIVE') return;
+        if(this.state!=='ACTIVE') return false;
         this.state='SLEEPING'; this.sleepTimer=seconds;
-        createFloatingGoldText(this.mesh.position.x,3,this.mesh.position.z,'💤 Asleep');
+        const cage=new THREE.Group(); cage.userData.disruptionCage=true;
+        const mat=new THREE.MeshBasicMaterial({color:0xa855f7,transparent:true,opacity:.72});
+        for(let i=0;i<3;i++){const ring=new THREE.Mesh(new THREE.TorusGeometry(1.05,.08,8,24),mat);ring.rotation.x=Math.PI/2;ring.position.y=.45+i*.65;cage.add(ring);}
+        const icon=createTextSprite('💤 DISRUPTED','#c084fc'); icon.position.y=3.4; icon.scale.set(4.8,1.3,1); cage.add(icon);
+        this.mesh.add(cage); this.mesh.traverse(o=>{if(o.material&&o.material.emissive)o.material.emissive.setHex(0x4c1d95);});
+        playSound('disrupt'); createFloatingGoldText(this.mesh.position.x,3,this.mesh.position.z,'💤 DISRUPTED'); return true;
     }
     buildRoute(toBase) {
         const nearest=nearestPathIndex(this.homeX,this.homeZ);
@@ -578,6 +604,8 @@ class WizardEntity {
     healNow() {
         this.hp=this.maxHp; this.sleepTimer=0;
         if(this.state==='SLEEPING') this.state='ACTIVE';
+        const cage=this.mesh.children.find(c=>c.userData&&c.userData.disruptionCage); if(cage)this.mesh.remove(cage);
+        this.mesh.rotation.z=0; playSound('heal');
         createFloatingGoldText(this.mesh.position.x,3,this.mesh.position.z,'💚 Healed');
     }
     specialize(type){this.type=type;this.level=2;this.rebuildMesh();}
@@ -593,7 +621,7 @@ class WizardEntity {
         const teleRing=this.mesh.children.find(c=>c.userData&&c.userData.teleRing); if(teleRing) teleRing.rotation.z+=dt*0.0018;
         if(this.state==='SLEEPING'){
             this.sleepTimer-=dt/1000; this.mesh.rotation.z=Math.sin(t*2)*0.08;
-            if(this.sleepTimer<=0){this.state='ACTIVE';this.mesh.rotation.z=0;}
+            if(this.sleepTimer<=0){this.state='ACTIVE';this.mesh.rotation.z=0;const cage=this.mesh.children.find(c=>c.userData&&c.userData.disruptionCage);if(cage)this.mesh.remove(cage);} else {const cage=this.mesh.children.find(c=>c.userData&&c.userData.disruptionCage);if(cage)cage.rotation.y+=dt*.003;}
             return;
         }
         // Deliberately slow at L1/L2. Swift Boots are a noticeable upgrade.
@@ -683,25 +711,21 @@ class KnightEntity {
 
         let curX = this.mesh.position.x;
         let curZ = this.mesh.position.z;
-        // Disruptors ignore the road, charge the nearest wizard, then sacrifice themselves.
+        // Disruptors remain on the road and strike the first nearby eligible wizard.
         if (this.unitType === 'disruptor') {
-            const target = wizards.filter(w => w.team !== this.team && w.state !== 'RETREATING' && w.state !== 'RETURNING')
-                .sort((a,b) => Math.hypot(a.mesh.position.x-curX,a.mesh.position.z-curZ)-Math.hypot(b.mesh.position.x-curX,b.mesh.position.z-curZ))[0];
-            if (target) {
-                const dist=Math.hypot(target.mesh.position.x-curX,target.mesh.position.z-curZ);
-                if(dist<1.4){ target.putToSleep(9); this.hp=0; createFloatingGoldText(curX,2.5,curZ,'💥 Disrupted'); return; }
-                const amount=curSpeed*(dt/1000), angle=Math.atan2(target.mesh.position.x-curX,target.mesh.position.z-curZ);
-                this.mesh.position.x+=Math.sin(angle)*amount; this.mesh.position.z+=Math.cos(angle)*amount; this.mesh.rotation.y=angle; return;
+            const target = wizards.find(w => w.team !== this.team && w.state === 'ACTIVE' && Math.hypot(w.mesh.position.x-curX,w.mesh.position.z-curZ) < 6.5);
+            if (target && target.putToSleep(10)) {
+                this.hp=0; burstParticles(target.mesh.position,0xa855f7,22); createFloatingGoldText(curX,2.5,curZ,'💥 Sacrifice'); return;
             }
         }
 
         // 1. Fight opposing knights
-        let enemyK = knights.find(k => k.team !== this.team && Math.hypot(k.mesh.position.x - curX, k.mesh.position.z - curZ) < (this.isMega ? 3.5 : 2.5));
+        let enemyK = this.unitType === 'disruptor' ? null : knights.find(k => k.team !== this.team && Math.hypot(k.mesh.position.x - curX, k.mesh.position.z - curZ) < (this.isMega ? 3.5 : 2.5));
         if (enemyK) {
             attacked = true;
             if (now - this.lastAttack > (this.isMega ? 800 : 1200)) {
                 let dmg = this.isMega ? 35 : 15;
-                enemyK.hp -= dmg;
+                enemyK.hp -= dmg; playSound('sword'); burstParticles(enemyK.mesh.position,0xffffff,6);
                 if (enemyK.isMega) enemyK.updateHealthBar();
                 this.lastAttack = now;
             }
@@ -709,7 +733,7 @@ class KnightEntity {
 
         // 2. Attack Wizards
         if (!attacked) {
-            let enemyW = wizards.find(w => w.team !== this.team && w.state === 'ACTIVE' && Math.hypot(w.mesh.position.x - curX, w.mesh.position.z - curZ) < 8.0);
+            let enemyW = this.unitType === 'disruptor' ? null : wizards.find(w => w.team !== this.team && w.state === 'ACTIVE' && Math.hypot(w.mesh.position.x - curX, w.mesh.position.z - curZ) < 8.0);
             if (enemyW && now - this.lastAttack > 1500) {
                 projectiles.push(new ProjectileEntity(curX, 1.2, curZ, enemyW, this.team, 'spear'));
                 this.lastAttack = now;
@@ -739,6 +763,7 @@ class KnightEntity {
                 let dmgAmt = this.isMega ? 30 : 10;
                 if (this.team === 'player') enemyHp = Math.max(0, enemyHp - dmgAmt);
                 else playerHp = Math.max(0, playerHp - Math.max(1, dmgAmt - castleArmour));
+                playSound('castle'); shakeAmount=Math.max(shakeAmount,this.isMega?1.2:.45); burstParticles((this.team==='player'?redCastle:blueCastle).position,0xf59e0b,this.isMega?28:12);
                 this.hp = 0;
             }
         }
@@ -797,6 +822,7 @@ class ProjectileEntity {
                 }
             }
 
+            playSound(this.type==='fire'||this.type==='ice'?'magic':'impact'); burstParticles(this.mesh.position,this.type==='ice'?0x38bdf8:(this.type==='fire'?0xff4500:0xffffff),10);
             scene.remove(this.mesh);
             return true;
         }
@@ -810,20 +836,24 @@ class ProjectileEntity {
 
 // --- 7. AUTO KNIGHT WAVE SYSTEM & ENEMY AI ---
 function triggerKnightWave() {
+    if(!gameActive) return;
     waveCount++;
-    waveInterval = Math.max(2.2, 6.0 - (waveCount * 0.15));
+    const level=CAMPAIGN_LEVELS[currentLevelIndex];
+    waveInterval = Math.max(3.4, 7.5 - (waveCount * 0.12));
 
     const batchSize = Math.min(4, 2 + Math.floor(waveCount / 6));
     for (let i = 0; i < batchSize; i++) {
         setTimeout(() => {
             knights.push(new KnightEntity('player', false));
             knights.push(new KnightEntity('enemy', false));
+            if(level.boss && waveCount===level.waves && i===0) knights.push(new KnightEntity('enemy', true));
         }, i * 400);
     }
 }
 
 setInterval(() => {
-    if (Math.random() < 0.25) {
+    if(!gameActive)return; const level=CAMPAIGN_LEVELS[currentLevelIndex];
+    if (Math.random() < 0.12 + level.difficulty*.05) {
         let availableSlots = wizardSlots.filter(s => (s.team === 'enemy' || s.x > 0) && !wizards.find(w => w.homeX === s.x && w.homeZ === s.z));
         if (availableSlots.length > 0) {
             let slot = availableSlots[Math.floor(Math.random() * availableSlots.length)];
@@ -839,10 +869,7 @@ setInterval(() => {
     if (waveCount >= 3 && Math.random() < 0.18) knights.push(new KnightEntity('enemy', false, 'disruptor'));
 }, 4500);
 
-setInterval(() => {
-    gold += goldIncome;
-    updateHUD();
-}, 1000);
+
 
 // --- 8. UI HANDLERS ---
 function updateHUD() {
@@ -857,6 +884,7 @@ function updateHUD() {
     const fill=document.getElementById('spellChargeFill'); if(fill) fill.style.width=(spellCharge/maxSpellCharge*100)+'%';
     const streak=document.getElementById('readingStreak'); if(streak) streak.innerText=readingStreak;
     document.getElementById('btn-spellbook').disabled = spellCharge < maxSpellCharge;
+    const stars=document.getElementById('starsTotal');if(stars)stars.textContent=Object.values(campaignSave.stars).reduce((a,b)=>a+b,0);
 }
 
 document.getElementById('btn-knight').onclick = () => {
@@ -876,13 +904,6 @@ document.getElementById('btn-wizard').onclick = () => {
     btn.classList.toggle('btn-active', mode === 'BUILD_WIZARD');
 };
 
-document.getElementById('btn-editor').onclick = () => {
-    mode = mode === 'EDIT_SLOTS' ? 'PLAY' : 'EDIT_SLOTS';
-    const btn = document.getElementById('btn-editor');
-    btn.innerText = mode === 'EDIT_SLOTS' ? "❌ Stop Editing" : "🛠️ Toggle Edit Mode";
-    btn.classList.toggle('btn-active', mode === 'EDIT_SLOTS');
-};
-
 function castReadingSpell(qObj) {
     const enemies=knights.filter(k=>k.team==='enemy');
     if(qObj.effect==='freeze') enemies.forEach(k=>k.slowTimer=Math.max(k.slowTimer,6));
@@ -895,7 +916,7 @@ function castReadingSpell(qObj) {
 }
 document.getElementById('btn-spellbook').onclick = () => {
     if(spellCharge<maxSpellCharge){showBattleText('The spellbook is still recharging.');return;}
-    spellCharge=0; currentQuestion=questions[Math.floor(Math.random()*questions.length)]; updateHUD();
+    spellCharge=0; {const pool=questions.filter(q=>q.difficulty<=CAMPAIGN_LEVELS[currentLevelIndex].difficulty);currentQuestion=pool[Math.floor(Math.random()*pool.length)];}; updateHUD();
     const modal=document.getElementById('spellbook-modal');
     document.getElementById('spell-question').innerText=currentQuestion.q;
     document.getElementById('spell-reward').innerText=`${currentQuestion.label} • Difficulty ${currentQuestion.difficulty}`;
@@ -903,8 +924,8 @@ document.getElementById('btn-spellbook').onclick = () => {
     currentQuestion.opts.forEach(opt=>{
         const btn=document.createElement('button'); btn.className='word-opt'; btn.innerText=opt;
         btn.onclick=()=>{
-            if(opt===currentQuestion.a){readingStreak++;castReadingSpell(currentQuestion);modal.classList.add('hidden');updateHUD();}
-            else {readingStreak=0;btn.classList.add('wrong');btn.disabled=true;document.getElementById('spell-feedback').innerText='Not quite — try another answer.';updateHUD();}
+            if(opt===currentQuestion.a){levelCorrect++;readingStreak++;playSound('magic');castReadingSpell(currentQuestion);modal.classList.add('hidden');updateHUD();}
+            else {levelWrong++;readingStreak=0;btn.classList.add('wrong');btn.disabled=true;document.getElementById('spell-feedback').innerText='Not quite — try another answer.';updateHUD();}
         }; optsDiv.appendChild(btn);
     });
     document.getElementById('spell-feedback').innerText=''; modal.classList.remove('hidden');
@@ -917,11 +938,10 @@ document.getElementById('btn-disruptor').onclick = () => {
 };
 document.getElementById('btn-heal').onclick = () => {
     if(gold<45){showBattleText('Not enough gold for Healing Light.');return;}
-    const hurt=wizards.filter(w=>w.team==='player'&&(w.hp<w.maxHp||w.state==='SLEEPING'));
-    if(!hurt.length){showBattleText('All your wizards are already healthy.');return;}
-    gold-=45;hurt.forEach(w=>w.healNow());updateHUD();
+    mode = mode==='TARGET_HEAL'?'PLAY':'TARGET_HEAL';
+    document.getElementById('btn-heal').classList.toggle('btn-active',mode==='TARGET_HEAL');
+    showBattleText(mode==='TARGET_HEAL'?'💚 Click one injured or disrupted wizard.':'Healing cancelled.');
 };
-document.getElementById('btn-castle').onclick=()=>document.getElementById('castle-modal').classList.remove('hidden');
 document.getElementById('btn-close-castle').onclick=()=>document.getElementById('castle-modal').classList.add('hidden');
 function buyCastleUpgrade(cost, action, message){if(gold<cost){showBattleText('Not enough gold.');return;}gold-=cost;action();updateHUD();showBattleText(message);}
 document.getElementById('btn-fortify').onclick=()=>buyCastleUpgrade(100,()=>{playerCastleMaxHp+=25;playerHp+=25;},'🏰 Castle maximum health increased!');
@@ -1015,6 +1035,10 @@ function openUpgradeModal(wiz) {
 // --- 9. 3D RAYCASTING & CLICK INTERACTION ---
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
+const castleUpgradeIcon=document.getElementById('castle-hover-upgrade');
+window.addEventListener('pointermove',e=>{if(!gameActive)return;mouse.x=e.clientX/window.innerWidth*2-1;mouse.y=-(e.clientY/window.innerHeight)*2+1;raycaster.setFromCamera(mouse,camera);const hit=raycaster.intersectObject(blueCastle,true).length>0;castleUpgradeIcon.classList.toggle('visible',hit);if(hit){const v=blueCastle.position.clone().project(camera);castleUpgradeIcon.style.left=((v.x*.5+.5)*innerWidth)+'px';castleUpgradeIcon.style.top=((-v.y*.5+.5)*innerHeight-48)+'px';}});
+castleUpgradeIcon.onclick=()=>document.getElementById('castle-modal').classList.remove('hidden');
+
 
 window.addEventListener('click', (e) => {
     if (e.target.tagName === 'BUTTON' || e.target.closest('#ui-layer') || e.target.closest('.modal')) return;
@@ -1024,21 +1048,15 @@ window.addEventListener('click', (e) => {
 
     raycaster.setFromCamera(mouse, camera);
 
-    if (mode === 'EDIT_SLOTS') {
-        const intersects = raycaster.intersectObject(ground);
-        if (intersects.length > 0) {
-            const pt = intersects[0].point;
-            if(distanceToPath(pt.x,pt.z)>5.5){showBattleText('Wizard slots must be close to the road.');return;}
-            let existingIdx = wizardSlots.findIndex(s => Math.hypot(s.x - pt.x, s.z - pt.z) < 2.5);
-            if (existingIdx !== -1) {
-                wizardSlots.splice(existingIdx, 1);
-            } else {
-                const teamSide = pt.x < 0 ? 'player' : 'enemy';
-                wizardSlots.push({ x: Math.round(pt.x), z: Math.round(pt.z), team: teamSide });
-            }
-            refreshSlotMeshes();
-        }
-        return;
+
+
+    if (mode === 'TARGET_HEAL') {
+        const healMeshes=wizards.filter(w=>w.team==='player').map(w=>w.mesh);
+        const hits=raycaster.intersectObjects(healMeshes,true);
+        if(hits.length){let obj=hits[0].object;while(obj.parent&&!obj.userData.entity)obj=obj.parent;const wiz=obj.userData.entity;
+            if(wiz&&(wiz.hp<wiz.maxHp||wiz.state==='SLEEPING')){gold-=45;wiz.healNow();mode='PLAY';document.getElementById('btn-heal').classList.remove('btn-active');updateHUD();}
+            else showBattleText('That wizard does not need healing.');
+        } return;
     }
 
     if (mode === 'BUILD_WIZARD') {
@@ -1089,6 +1107,24 @@ window.addEventListener('click', (e) => {
     }
 });
 
+// --- AUDIO, PARTICLES & CAMPAIGN ---
+let audioCtx=null, musicTimer=null;
+function tone(freq,duration=.08,type='sine',volume=.035,delay=0){try{audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();const o=audioCtx.createOscillator(),v=audioCtx.createGain();o.type=type;o.frequency.value=freq;v.gain.setValueAtTime(volume,audioCtx.currentTime+delay);v.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+delay+duration);o.connect(v);v.connect(audioCtx.destination);o.start(audioCtx.currentTime+delay);o.stop(audioCtx.currentTime+delay+duration);}catch(e){}}
+function playSound(kind){const m={sword:[180,.06,'square'],impact:[110,.07,'triangle'],magic:[620,.14,'sine'],castle:[70,.24,'sawtooth'],disrupt:[240,.3,'square'],heal:[520,.28,'sine']}[kind];if(m)tone(...m);}
+function startMusic(){clearInterval(musicTimer);let i=0;const notes=[196,247,294,247,220,262,330,262];musicTimer=setInterval(()=>{if(gameActive)tone(notes[i++%notes.length],.32,'triangle',.009)},430);}
+function victoryMusic(){[523,659,784,1047].forEach((n,i)=>tone(n,.35,'sine',.045,i*.13));}
+function createTextSprite(text,color='#fff'){const cv=document.createElement('canvas');cv.width=512;cv.height=128;const x=cv.getContext('2d');x.font='900 46px Segoe UI';x.textAlign='center';x.fillStyle=color;x.strokeStyle='#111827';x.lineWidth=8;x.strokeText(text,256,78);x.fillText(text,256,78);return new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),transparent:true,depthTest:false}));}
+const particles=[];
+function burstParticles(pos,color,count=10){for(let i=0;i<count;i++){const m=new THREE.Mesh(new THREE.SphereGeometry(.12,5,5),new THREE.MeshBasicMaterial({color}));m.position.copy(pos);m.position.y+=1;scene.add(m);particles.push({mesh:m,v:new THREE.Vector3((Math.random()-.5)*8,Math.random()*7+2,(Math.random()-.5)*8),life:.65});}}
+function clearEntities(){[...knights].forEach(x=>x.destroy());[...wizards].forEach(x=>x.destroy());[...projectiles].forEach(x=>scene.remove(x.mesh));knights.length=wizards.length=projectiles.length=0;}
+function slotsForLevel(level){const left=level.slots.map(([x,z])=>({x,z,team:'player'}));const right=left.map(s=>({x:-s.x,z:s.z,team:'enemy'}));return [...left,...right];}
+function loadLevel(index){currentLevelIndex=index;const L=CAMPAIGN_LEVELS[index];gameActive=true;clearEntities();pathNodes=L.path.map(([x,z])=>({x,z}));playerBasePos=pathNodes[0];enemyBasePos=pathNodes[pathNodes.length-1];wizardSlots=slotsForLevel(L);scene.remove(pathMeshGroup);pathMeshGroup=buildPathMesh();scene.add(pathMeshGroup);blueCastle.position.set(playerBasePos.x-3,0,playerBasePos.z);redCastle.position.set(enemyBasePos.x+3,0,enemyBasePos.z);ground.material.color.setHex(L.theme);refreshSlotMeshes();playerCastleMaxHp=100;enemyCastleMaxHp=L.boss?180:100;playerHp=100;enemyHp=enemyCastleMaxHp;gold=70;goldIncome=0;castleArmour=0;playerWizardRangeBonus=0;waveCount=0;waveTimer=0;readingStreak=0;spellCharge=100;levelCorrect=0;levelWrong=0;levelStartHp=playerHp;document.getElementById('campaign-modal').classList.add('hidden');document.getElementById('levelName').textContent=L.name;document.getElementById('waveGoal').textContent=L.waves;updateHUD();triggerKnightWave();startMusic();}
+function renderCampaign(){const grid=document.getElementById('level-grid');grid.innerHTML='';CAMPAIGN_LEVELS.forEach((L,i)=>{const b=document.createElement('button');const unlocked=i<campaignSave.unlocked;b.className='level-card'+(unlocked?'':' locked');const stars=campaignSave.stars[i]||0;b.innerHTML=`<strong>${L.name}</strong><span>${'⭐'.repeat(stars)}${'☆'.repeat(3-stars)}</span><small>${L.waves} waves${L.boss?' · Boss':''}</small>`;b.disabled=!unlocked;b.onclick=()=>loadLevel(i);grid.appendChild(b);});document.getElementById('starsTotal').textContent=Object.values(campaignSave.stars).reduce((a,b)=>a+b,0);}
+function finishLevel(won){if(!gameActive)return;gameActive=false;const L=CAMPAIGN_LEVELS[currentLevelIndex];let stars=0;if(won){stars=1+(playerHp>=60?1:0)+(levelWrong===0?1:0);campaignSave.stars[currentLevelIndex]=Math.max(campaignSave.stars[currentLevelIndex]||0,stars);campaignSave.unlocked=Math.max(campaignSave.unlocked,Math.min(CAMPAIGN_LEVELS.length,currentLevelIndex+2));localStorage.setItem('spellboundCampaignV4',JSON.stringify(campaignSave));victoryMusic();}document.getElementById('result-title').textContent=won?'🏆 Battle Won!':'🏰 Castle Fallen';document.getElementById('result-stars').textContent=won?'⭐'.repeat(stars)+'☆'.repeat(3-stars):'Try again';document.getElementById('result-summary').textContent=`${L.name} · ${levelCorrect} correct answers · Castle ${playerHp}/${playerCastleMaxHp}`;document.getElementById('btn-next-level').style.display=won&&currentLevelIndex<CAMPAIGN_LEVELS.length-1?'flex':'none';document.getElementById('result-modal').classList.remove('hidden');renderCampaign();}
+document.getElementById('btn-next-level').onclick=()=>{document.getElementById('result-modal').classList.add('hidden');loadLevel(Math.min(currentLevelIndex+1,CAMPAIGN_LEVELS.length-1));};
+document.getElementById('btn-level-select').onclick=()=>{document.getElementById('result-modal').classList.add('hidden');document.getElementById('campaign-modal').classList.remove('hidden');renderCampaign();};
+renderCampaign();
+
 // --- 10. ANIMATION & GAME LOOP ---
 function animate() {
     requestAnimationFrame(animate);
@@ -1097,11 +1133,12 @@ function animate() {
     let dt = now - lastTime;
     lastTime = now;
 
-    spellCharge=Math.min(maxSpellCharge,spellCharge+(dt/1000)*5);
-    waveTimer += dt / 1000;
-    if (waveTimer >= waveInterval) {
-        waveTimer = 0;
-        triggerKnightWave();
+    if(gameActive){
+      spellCharge=Math.min(maxSpellCharge,spellCharge+(dt/1000)*4);
+      incomeClock+=dt/1000;if(goldIncome>0&&incomeClock>=5){incomeClock=0;gold+=goldIncome;updateHUD();}
+      waveTimer += dt / 1000;
+      const goal=CAMPAIGN_LEVELS[currentLevelIndex].waves;
+      if (waveTimer >= waveInterval && waveCount < goal) { waveTimer = 0; triggerKnightWave(); }
     }
 
     wizards.forEach(w => w.update(dt));
@@ -1138,14 +1175,13 @@ function animate() {
         }
     }
 
-    if (playerHp <= 0) {
-        alert("Red Team Wins! Refreshing battle...");
-        playerHp=playerCastleMaxHp;enemyHp=enemyCastleMaxHp;gold=80;waveCount=0;readingStreak=0;spellCharge=100;updateHUD();
-    }
-    if (enemyHp <= 0) {
-        alert("Blue Team Wins! Victory!");
-        playerHp=playerCastleMaxHp;enemyHp=enemyCastleMaxHp;gold=80;waveCount=0;readingStreak=0;spellCharge=100;updateHUD();
-    }
+    if (playerHp <= 0) finishLevel(false);
+    const goal=CAMPAIGN_LEVELS[currentLevelIndex].waves;
+    if (gameActive && waveCount>=goal && enemyHp<=0) finishLevel(true);
+    // A battle also ends after the final wave has been cleared.
+    if (gameActive && waveCount>=goal && knights.filter(k=>k.team==='enemy').length===0 && waveTimer>2) { enemyHp=0; finishLevel(true); }
+    for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.life-=dt/1000;p.v.y-=12*dt/1000;p.mesh.position.addScaledVector(p.v,dt/1000);p.mesh.material.opacity=Math.max(0,p.life/.65);p.mesh.material.transparent=true;if(p.life<=0){scene.remove(p.mesh);particles.splice(i,1);}}
+    if(shakeAmount>0){camera.position.x=(Math.random()-.5)*shakeAmount;camera.position.y=66+(Math.random()-.5)*shakeAmount;camera.position.z=62+(Math.random()-.5)*shakeAmount;shakeAmount*=.86;}else{camera.position.x=0;camera.position.y=66;camera.position.z=62;} camera.lookAt(0,-3,0);
 
     const animationTime = performance.now();
     if (blueCastle.userData.animate) blueCastle.userData.animate(animationTime);
@@ -1156,5 +1192,4 @@ function animate() {
 
 updateCameraViewport();
 updateHUD();
-triggerKnightWave();
 requestAnimationFrame(animate);

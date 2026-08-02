@@ -277,3 +277,9 @@ canvas {
 @media (max-width:760px){
   .hud-centre{flex-direction:column;gap:3px}.spell-meter-bg{width:90px}.spell-meter{min-width:90px}.upgrade-grid{grid-template-columns:1fr}
 }
+
+#castle-hover-upgrade{position:fixed;z-index:60;display:none;transform:translate(-50%,-50%);width:52px;height:52px;border-radius:50%;border:3px solid #fbbf24;background:#1e293b;color:white;font-size:24px;cursor:pointer;box-shadow:0 0 24px #fbbf24;animation:upgradePulse 1s infinite;pointer-events:auto}
+#castle-hover-upgrade.visible{display:block}
+@keyframes upgradePulse{50%{transform:translate(-50%,-50%) scale(1.12)}}
+.level-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;max-height:62vh;overflow:auto}.level-card{display:flex;flex-direction:column;gap:5px;text-align:left;padding:13px;border-radius:12px;border:1px solid #38bdf8;background:#172033;color:white;cursor:pointer}.level-card span{color:#fbbf24;font-size:18px}.level-card small{color:#cbd5e1}.level-card.locked{opacity:.4;filter:grayscale(1);cursor:not-allowed}.campaign-panel{max-width:700px}.result-stars{font-size:38px;margin:14px}.wizard-disrupted{filter:drop-shadow(0 0 12px #a855f7)}
+@media(max-width:650px){.level-grid{grid-template-columns:1fr}.campaign-panel{padding:18px}}

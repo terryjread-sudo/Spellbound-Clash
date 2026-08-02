@@ -1,17 +1,20 @@
-# Spellbound Clash V3
+# Spellbound Clash V4 — Campaign Edition
 
-A browser-based 3D tower-defence and reading game for age 8.
+A browser-based 3D tower defence and reading game for age 8.
 
-## V3 additions
-- Wizards retreat via the battle road instead of walking directly through the map.
-- Level 1 and 2 retreat speed is deliberately slow; Swift Boots provide a meaningful speed upgrade.
-- Teleport Masters instantly return to the castle, heal, then walk back along the road.
-- Wizard slots are placed near the path and Edit Mode rejects distant placements.
-- The spellbook recharges during battle. Correct answers cast Frost, Reinforcement, Meteor, or Wealth spells.
-- Incorrect answers remain open so the child can try again.
-- Difficulty-based gold, answer streaks, and a five-answer meteor bonus.
-- Disruptor units charge wizards directly, sacrifice themselves, and put the target to sleep.
-- Healing Light wakes and heals player wizards.
-- Castle upgrades: Fortify, Reinforced Stone, Treasury, and Arcane Beacon.
+## V4 highlights
+- Ten saved campaign battles with larger maps, progressive difficulty, boss waves and 1–3 star ratings.
+- Wizard slots are fixed close to the path; map editing has been removed.
+- Hover over the blue castle to reveal its upgrade icon.
+- Healing Light enters targeting mode: click the one wizard you want to heal or wake.
+- Disruptors stay on the road and sacrifice themselves against the first nearby active enemy wizard.
+- Disrupted wizards show three purple restraint rings, a large status label and a strong magical glow.
+- Passive gold starts at zero. Treasury and difficult reading rewards add modest income paid every five seconds.
+- Procedural Web Audio effects for swords, spells, castle impacts, disruption, healing, background music and victory.
+- Particle impacts and camera shake, especially when Mega Knights hit a castle.
 
-Upload `index.html`, `style.css`, and `game.js` to the root of a GitHub Pages repository.
+## Campaign saving
+Progress and stars are stored in the browser with `localStorage`. Clearing site data resets the campaign.
+
+## Deployment
+Upload `index.html`, `style.css`, `game.js` and `README.md` to the root of the GitHub Pages repository.
